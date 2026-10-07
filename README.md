@@ -14,6 +14,8 @@ Three.js で描画し、地形・海・空・機体・ボスはすべてコー�
 | ![ツインレーザーで敵編隊を狙う海上戦](docs/screenshots/ocean.jpg) | ![赤い岩の峡谷と倒れてくる岩柱](docs/screenshots/canyon.jpg) |
 | ![ネオンが光る夜の要塞都市](docs/screenshots/fortress.jpg) | ![海から現れる海竜型ボス「ミズチ」](docs/screenshots/boss-rise.jpg) |
 
+> 🌏 **新作 SKYLINE ASIA（ベトナム語版）**：このエンジンをもとに、アジア10か国の首都（ハノイ・バンコク・クアラルンプール・シンガポール・ジャカルタ・マニラ・ニューデリー・北京・ソウル・東京）の空を飛ぶ全10ステージの新作を [`asia/`](asia/README.md) に追加しました。
+
 ## ステージ
 
 **MISSION 01「AZURE COAST」**（約 3 分 ＋ ボス戦）
@@ -89,6 +91,7 @@ Three.js で描画し、地形・海・空・機体・ボスはすべてコー�
 npm install
 npm run build   # index.html（単体で動く 1 ファイル）を生成
 npm run dev     # ソースを監視して開発ビルド（ソースマップ付き）
+npm run build:asia   # 新作 SKYLINE ASIA（asia/index.html）を生成
 ```
 
 `index.html` はビルドで生成されるファイルで、GitHub Pages はこれをそのまま配信しています。three.js ごと 1 ファイルに入っているので、ダウンロードしてダブルクリックでも遊べます（フォントだけは Google Fonts から読み込みます）。

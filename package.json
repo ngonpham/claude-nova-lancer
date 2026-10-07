@@ -13,7 +13,10 @@
   "type": "module",
   "scripts": {
     "build": "node tools/build.mjs",
-    "dev": "node tools/build.mjs --watch"
+    "dev": "node tools/build.mjs --watch",
+    "build:asia": "node tools/build.mjs --game=asia",
+    "dev:asia": "node tools/build.mjs --game=asia --watch",
+    "build:all": "node tools/build.mjs && node tools/build.mjs --game=asia"
   },
   "devDependencies": {
     "esbuild": "^0.25.10",
