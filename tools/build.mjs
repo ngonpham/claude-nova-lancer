@@ -1,12 +1,14 @@
 // Build script: bundles a game's main.js (with three.js) into a single self-contained HTML file.
 //   node tools/build.mjs              → minified build of NOVA LANCER (src/)
 //   node tools/build.mjs --game=asia  → minified build of SKYLINE ASIA (asia/src/)
+//   node tools/build.mjs --game=pandora → minified build of PANDORA RIDERS (pandora/src/)
 //   add --dev   → unminified build with inline sourcemap (for debugging)
 //   add --watch → dev build, rebuilds on change
 //
 // Outputs
 //   NOVA LANCER   index.html, dist/nova-lancer.html
 //   SKYLINE ASIA  asia/index.html, dist/skyline-asia.html
+//   PANDORA RIDERS pandora/index.html, dist/pandora-riders.html
 //   (the dist/ file is the same page without the <html>/<head>/<body> wrapper, for hosting as an Artifact)
 import * as esbuild from 'esbuild';
 import fs from 'node:fs';
@@ -20,6 +22,7 @@ const dev = watch || process.argv.includes('--dev');
 const GAMES = {
   nova: { src: 'src', out: 'index.html', fragment: 'nova-lancer.html', lang: 'ja' },
   asia: { src: path.join('asia', 'src'), out: path.join('asia', 'index.html'), fragment: 'skyline-asia.html', lang: 'vi' },
+  pandora: { src: path.join('pandora', 'src'), out: path.join('pandora', 'index.html'), fragment: 'pandora-riders.html', lang: 'vi' },
 };
 const gameArg = (process.argv.find(a => a.startsWith('--game=')) || '--game=nova').slice(7);
 const GAME = GAMES[gameArg];
