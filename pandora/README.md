@@ -11,8 +11,9 @@ Người chơi **cưỡi thú chiến đấu** — pa'li, ikran, Toruk, thanator
 
 | | |
 | --- | --- |
-| ![Núi Hallelujah](../docs/pandora/hallelujah.jpg) | ![Cây Nhà bốc cháy](../docs/pandora/hometree.jpg) |
-| ![Toruk](../docs/pandora/toruk.jpg) | ![Rạn san hô Metkayina](../docs/pandora/reef.jpg) |
+| ![Cưỡi ikran qua núi Hallelujah](../docs/pandora/hallelujah.jpg) | ![Cây Nhà bốc cháy lúc chạng vạng](../docs/pandora/hometree.jpg) |
+| ![Đối đầu Toruk trên mây](../docs/pandora/toruk.jpg) | ![Lướt skimwing trên rạn san hô Metkayina](../docs/pandora/reef.jpg) |
+| ![Phi pa'li qua thảo nguyên](../docs/pandora/pali-plains.jpg) | ![Cưỡi Toruk vào vùng xoáy Flux](../docs/pandora/flux.jpg) |
 
 ## 10 màn chơi
 

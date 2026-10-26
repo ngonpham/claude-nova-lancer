@@ -24,8 +24,8 @@ const cylZ = (r, len, x, y, z, seg = 10) => new THREE.CylinderGeometry(r, r, len
 // Every design: build(C) → parts; core/doors at `door`; hardpoints; collision spheres [x,y,z,r]; engine glows.
 const DESIGNS = {
   excavator: {
-    size: 1.15, motion: 'ground', hv: 0, door: [0, 11, 22], doorScale: 0.75, turretScale: 0.8,
-    hardpoints: [[-8, 17, 6], [10, 15, 8], [-13, 15, -14], [13, 15, -14], [0, 17, -20], [-3, 17, 16]],
+    size: 1.15, motion: 'ground', hv: 0, door: [0, 11, 22], doorScale: 0.75, turretScale: 0.8, hullK: 0.32,
+    hardpoints: [[-8, 17, 6], [10, 15, 8], [-13, 17, -8], [13, 17, -8], [0, 20, -12], [-3, 17, 16]],
     spheres: [[0, 11, 4, 17], [0, 11, -16, 16], [15, 4, -4, 8], [-15, 4, -4, 8]], engines: [[10, 22, -20], [-4, 22, -20]],
     build(C) {
       const P = [];
@@ -114,8 +114,8 @@ const DESIGNS = {
     },
   },
   whaler: {
-    size: 1.3, motion: 'sea', hv: 0, door: [0, 7, 31], doorScale: 0.55, turretScale: 0.8,
-    hardpoints: [[-8, 9, 20], [8, 9, 20], [0, 19, 0], [-8, 9, -28], [8, 9, -28], [0, 10, -58]],
+    size: 1.3, motion: 'sea', hv: 0, door: [0, 7, 31], doorScale: 0.55, turretScale: 0.8, hullK: 0.3,
+    hardpoints: [[-8, 9, 20], [8, 9, 20], [0, 19, 0], [-9, 12, -24], [9, 12, -24], [0, 14, -44]],
     spheres: [[0, 6, 18, 11], [0, 8, -10, 13], [0, 6, -42, 12]], engines: [[-5, 3, 32], [5, 3, 32]],
     build(C) {
       const P = [paint(loft([{ z: -74, pts: hexS(1.5, 3, 2) }, { z: -60, pts: hexS(9, 6, 2) }, { z: -10, pts: hexS(13, 7, 1.5) }, { z: 30, pts: hexS(12, 6.5, 1.5) }]), '#e2e2da')];
@@ -236,7 +236,7 @@ export class VehicleBoss {
         return 'hit';
       },
     };
-    this.hullT = { pos: this.hullPos = new THREE.Vector3(), radius: 0.6 * this.D.spheres[0][3] * this.size, alive: true, lockable: false, hittable: true, hit: () => 'armor' };
+    this.hullT = { pos: this.hullPos = new THREE.Vector3(), radius: (this.D.hullK ?? 0.6) * this.D.spheres[0][3] * this.size, alive: true, lockable: false, hittable: true, hit: () => 'armor' };
     this.turT = this.turrets.map((tr) => {
       const t = {
         pos: tr.pos, radius: Math.max(3.4, 4.6 * this.size * this.D.turretScale), alive: true, lockable: true, hittable: true,
