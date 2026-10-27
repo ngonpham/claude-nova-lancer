@@ -1605,7 +1605,8 @@ const INST = {
     const v = new Voice(musicPool, sp.bus.timp, t, 1);
     const amp = v.gain(1);
     let end = t;
-    [[1, 0.22, 1.5], [1.5, 0.1, 1.0], [1.98, 0.05, 0.7], [2.44, 0.025, 0.45]].forEach(([r, a, d]) => {
+    const dm = e.roll ? 0.3 : 1;
+    [[1, 0.22, 1.5 * dm], [1.5, 0.1, 1.0 * dm], [1.98, 0.05, 0.7 * dm], [2.44, 0.025, 0.45 * dm]].forEach(([r, a, d]) => {
       const g = v.gain(0, amp);
       end = Math.max(end, perc(g.gain, t, a * vel, 0.003, d));
       const o = v.osc('sine', f * r, t, t + d + 0.05, g);
@@ -2232,8 +2233,11 @@ function compileSection(song, sec) {
         let total = run; while (pat[i + total - run] === 'z') total++;
         const k = (run + 1) / Math.max(1, total);
         const root = place(chordAt(s).ch.root, 45, 38, 50);
-        push(s, { i: 'timp', n: root, v: (0.25 + 0.6 * k) * V });
-        push(s + 0.5, { i: 'timp', n: root, v: (0.22 + 0.6 * k) * V });
+        // Roll strokes re-excite the head, so each one only needs a short tail
+        // (the last stroke of a run rings fully).
+        const lastStroke = pat[i + 1] !== 'z';
+        push(s, { i: 'timp', n: root, v: (0.25 + 0.6 * k) * V, roll: true });
+        push(s + 0.5, { i: 'timp', n: root, v: (0.22 + 0.6 * k) * V, roll: !lastStroke });
         run++;
         continue;
       }
@@ -2295,101 +2299,133 @@ function compileSong(def) {
 // 11. Song data — patterns and original compositions
 // -----------------------------------------------------------------------------
 const DRUM = {
-  // generic rock drive
-  intro:  { k: 'X.......X.x.....', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.' },
-  introC: { c: 'X...............', k: 'X.......X.x.....', s: '....X.......X...', h: '..x.x.x.x.x.x.x.' },
-  drive:  { k: 'X.......X.x.....', s: '....X.......X...', h: 'x.xox.x.x.xox.x.' },
-  driveC: { c: 'X...............', k: 'X.......X.x.....', s: '....X.......X...', h: '..xox.x.x.xox.x.' },
-  drive2: { k: 'X.....x.X.x...x.', s: '....X.......X..o', h: 'x.xox.xox.xox.x.' },
-  hook:   { k: 'X...X...X...X...', s: '....X.......X...', h: 'x...x...x...x...', o: '..x...x...x...x.' },
-  hookC:  { c: 'X...............', k: 'X...X...X...X...', s: '....X.......X...', o: '..x...x...x...x.' },
-  fillA:  { k: 'X.......X.......', s: '....X...x.x.XxXX', h: 'x.x.x.x.........' },
-  fillAw: { k: 'X.......X.......', s: '....X...x.x.XxXX', h: 'x.x.x.x.........', w: '....x...........' },
-  fillT:  { k: 'X.......X.......', s: '....X...........', t: '........1122.3.4', h: 'x.x.x.x.........' },
-  half:   { k: 'X.........x.....', s: '........X.......', h: 'x.x.x.x.x.x.x.x.' },
-  halfC:  { c: 'X...............', k: 'X.........x.....', s: '........X.......', h: '..x.x.x.x.x.x.x.' },
-  build:  { k: 'X...X...X...X...', s: 'o.o.o.o.xxxxXXXX', w: '........x.......' },
-  // title / ending (majestic march)
-  tMarch:  { k: 'X.......X.......', s: '....x.......x..o', h: 'o.o.o.o.o.o.o.o.' },
-  tMarchC: { c: 'X...............', k: 'X.......X.......', s: '....x.......x..o', h: '..o.o.o.o.o.o.o.' },
-  tBig:    { k: 'X.....x.X.......', s: '....X.......X.xx', h: 'x.x.x.x.x.x.x.x.' },
-  tBigC:   { c: 'X...............', k: 'X.....x.X.......', s: '....X.......X.xx', h: '..x.x.x.x.x.x.x.' },
-  tFill:   { k: 'X.......X.......', s: '....X...........', t: '........1.2.3.44', h: 'o.o.o.o.........' },
+  // --- shared ------------------------------------------------------------------
   tSwell:  { w: 'x...............' },
-  // 1 Hà Nội: rock with trống cơm answers
-  hnDrive: { k: 'X.......X.x.....', s: '....X.......X...', h: 'x.x.x.x.x.x.x...', t: '..............21' },
-  // 2 Bangkok: ching (open) / chap (closed) cymbal cycle, klong tom fills
-  thai:   { k: 'X.....x.X.......', s: '....X.......X...', h: 'x...x...x...x...', o: '..x...x...x...x.' },
-  thaiC:  { c: 'X...............', k: 'X.....x.X.......', s: '....X.......X...', h: '....x...x...x...', o: '..x...x...x...x.' },
-  thai2:  { k: 'X.....x.X.x...x.', s: '....X.......X..o', h: 'x.x.x.x.x.x.x.x.', t: '.......2.......1' },
-  thaiF:  { k: 'X.......X.......', s: '....X...........', t: '..1.1.2.2.3.3344', o: '..x...x.........' },
-  // 3 Kuala Lumpur: joget 3+3+2 pulse with rebana, monsoon storm beat
-  joget:  { k: 'X..x..x.X..x..x.', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', t: '......1.......12' },
-  jogetC: { c: 'X...............', k: 'X..x..x.X..x..x.', s: '....X.......X...', h: '..x.x.x.x.x.x.x.', t: '......1.......12' },
-  storm:  { k: 'X..X..X.X..X..X.', s: '....X..o....X.oo', h: 'xoxoxoxoxoxoxoxo' },
-  stormC: { c: 'X...............', k: 'X..X..X.X..X..X.', s: '....X..o....X.oo', h: '..xoxoxoxoxoxoxo' },
-  jogetF: { k: 'X..x..x.X.......', s: '....X...x.x.XxXX', t: '........1.1.2...' },
-  // 4 Singapore: four-on-the-floor EDM
-  edm:    { k: 'X...X...X...X...', s: '....X.......X...', h: 'xo.oxo.oxo.oxo.o', o: '..x...x...x...x.' },
-  edmC:   { c: 'X...............', k: 'X...X...X...X...', s: '....X.......X...', h: '.o.oxo.oxo.oxo.o', o: '..x...x...x...x.' },
-  edm16:  { k: 'X...X...X...X...', s: '....X.......X...', h: 'xoxoxoxoxoxoxoxo', o: '..x...x...x...x.' },
-  edmBuild: { k: 'X...X...X...X...', s: 'x...x...x.x.xxxx', w: 'x...............' },
-  edmBrk: { k: 'X.......X.......', h: '..x...x...x...x.' },
-  // 5 Jakarta: kendang hand-drum patterns, gong on the downbeat
-  kend:   { k: 'X.......X.......', s: '....o.......X...', h: 'x...x...x...x...', t: '..2.32...2.3.2.1' },
-  kendC:  { c: 'X...............', k: 'X.......X.......', s: '....o.......X...', t: '..2.32...2.3.2.1' },
-  kend2:  { k: 'X.....x.X.......', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', t: '.2.3.2..2..3.21.' },
-  kendF:  { k: 'X.......X.......', s: '............X.XX', t: '1.1.2.2.3.3.4.44' },
-  // 6 Manila: son clave on the high tom, congas, busy hats
-  latin:  { k: 'X.....x.X.....x.', s: '....X.......X...', h: 'x.xxx.xxx.xxx.xx', t: '1..1..1...1.1...' },
-  latinC: { c: 'X...............', k: 'X.....x.X.....x.', s: '....X.......X...', h: '..xxx.xxx.xxx.xx', t: '1..1..1...1.1...' },
-  latin2: { k: 'X.....x.X.....x.', s: '....X.......X...', h: 'x.xxx.xxx.xxx.xx', t: '1..1..1.3.1.1.33' },
-  latinF: { k: 'X.....x.X.......', s: '....X.......xXXX', t: '1..1..1.3.3.2...' },
-  // 7 New Delhi: tabla-like strokes (high tom = dayan, kick = bayan), tihai fill
-  tabla:  { k: 'X..x....X..x....', s: '....o.......X...', h: 'x.xx.xx.x.xx.xx.', t: '1..2.1..1..2.12.' },
-  tablaC: { c: 'X...............', k: 'X..x....X..x....', s: '....o.......X...', h: '..xx.xx.x.xx.xx.', t: '1..2.1..1..2.12.' },
-  tabla2: { k: 'X..x..x.X..x....', s: '....X.......X..o', h: 'xxx.xxx.xxx.xxx.', t: '.1.1..2..1.1.221' },
-  tabFill:{ k: 'X.......X.......', s: '............XXXX', t: '112.112.112.4...' },
-  // 8 Beijing: big drum (low tom) under a march beat
-  bj:     { k: 'X.......X.......', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', t: '..........4.4...' },
-  bjC:    { c: 'X...............', k: 'X.......X.......', s: '....X.......X...', h: '..x.x.x.x.x.x.x.', t: '..........4.4...' },
-  bjBig:  { k: 'X..X....X.X.....', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', t: '4.......4...4.4.' },
-  bjBigC: { c: 'X...............', k: 'X..X....X.X.....', s: '....X.......X...', h: '..x.x.x.x.x.x.x.', t: '4.......4...4.4.' },
-  bjFill: { k: 'X.......X.......', s: '............XXXX', t: '4.4.3.3.2.2.1.1.' },
-  // 9 Seoul: K-pop trap hats, janggu-like tom accents
-  kpop:   { k: 'X.....x.X.......', s: '....X.......X...', h: 'xoxoxoxoxoxxxoxo' },
-  kpopC:  { c: 'X...............', k: 'X.....x.X.......', s: '....X.......X...', h: '..xoxoxoxoxxxoxo' },
-  kpopJ:  { k: 'X.....x.X.......', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', t: '1..2..1.....2.1.' },
-  kpopRoll: { k: 'X...X...X...X...', s: '....X...xoxoXXXX', h: 'xxxxxxxx........', w: '........x.......' },
-  // 10 Tokyo: double-kick rock, taiko, blast climax
-  tkDrive:  { k: 'X.x.X.x.X.x.X.x.', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.' },
-  tkDriveC: { c: 'X...............', k: 'X.x.X.x.X.x.X.x.', s: '....X.......X...', h: '..x.x.x.x.x.x.x.' },
-  tkTaiko:  { k: 'X.......X.......', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', t: '4..4..4.3.3.4...' },
-  tkTaikoC: { c: 'X...............', k: 'X.......X.......', s: '....X.......X...', h: '..x.x.x.x.x.x.x.', t: '4..4..4.3.3.4...' },
-  tkBlast:  { k: 'XxXxXxXxXxXxXxXx', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.' },
-  tkBlastC: { c: 'X...............', k: 'XxXxXxXxXxXxXxXx', s: '....X.......X...', h: '..x.x.x.x.x.x.x.' },
-  tkFill:   { k: 'X.......X.......', s: '....X...........', t: '........44332211', w: '........x.......' },
-  // boss (aggressive)
-  bIntro: { c: 'X...............', k: 'X.......X.......', s: '............X.XX' },
-  bBeat:  { k: 'X..X..X.X..X..X.', s: '....X.......X...', h: 'xoxoxoxoxoxoxoxo' },
-  bBeatC: { c: 'X...............', k: 'X..X..X.X..X..X.', s: '....X.......X...', h: '..xoxoxoxoxoxoxo' },
-  bFill:  { k: 'X..X..X.X.......', s: '....X...........', t: '........11223344', h: 'xoxoxoxo........' },
-  bFill2: { k: 'X..X..X.X.......', s: '....X...XxXxXXXX', h: 'xoxoxoxo........' },
-  // final boss
-  fBeat:  { k: 'XxXxX.XxXxXxX.Xx', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.' },
-  fBeatC: { c: 'X...............', k: 'XxXxX.XxXxXxX.Xx', s: '....X.......X...', h: '..x.x.x.x.x.x.x.' },
-  fTaiko: { k: 'X..X..X.X..X..X.', s: '....X.......X...', h: 'xoxoxoxoxoxoxoxo', t: '4.....4.....3.3.' },
-  // clear / results / game over
-  fan1:   { c: 'X...............', k: 'X...............' },
-  fanB:   { k: 'X.......X.......', s: '....x.......x...' },
-  fanRoll:{ k: 'X.......X.......', s: 'o.o.o.o.xxxxXXXX' },
-  res:    { k: 'x.......x.......', h: '..o...o...o...o.' },
-  resB:   { k: 'x.........x.....', s: '....o.......o...', h: 'o.o.o.o.o.o.o.o.' },
+  res:     { k: 'x.......x.......', h: '..o...o...o...o.' },
+  resB:    { k: 'x.........x.....', s: '....o.......o...', h: 'o.o.o.o.o.o.o.o.', m: '3.......3.......' },
+  // --- title / ending: noble march under the bronze drum --------------------------
+  lhOpen:  { b: 'X.......x.......', g: 'X...............' },
+  lhMarch: { k: 'X.......X.......', s: '....x.......x..o', h: 'o.o.o.o.o.o.o.o.', b: 'X...............' },
+  lhBig:   { k: 'X.....x.X.......', s: '....X.......X.xx', h: 'x.x.x.x.x.x.x.x.', b: 'X.......x.......', d: '..........x.x...' },
+  lhFill:  { k: 'X.......X.......', s: '....X...........', t: '........1.2.3...', d: '............X.XX', h: 'o.o.o.o.........' },
+  lhHalf:  { k: 'X.........x.....', s: '........X.......', h: 'x.x.x.x.x.x.x.x.', b: 'X...............' },
+  lhBuild: { k: 'X...X...X...X...', s: 'o.o.o.o.xxxxXXXX', w: '........x.......', d: 'X...X...X...X...' },
+  // --- 1 Văn Lang: ritual bronze drums, mõ ticks ---------------------------------
+  vlRit:   { b: 'X.......x...2...', m: '..1...1...1...1.', h: '..o...o...o...o.' },
+  vlRitF:  { b: 'X.......2.2.2222', m: '1.1.1.1.........', w: '........x.......' },
+  vlA:     { k: 'X.......X.......', b: 'X.....x.....2...', s: '....o.......x...', h: 'x.x.x.x.x.x.x.x.', m: '..1...1...1...11' },
+  vlA2:    { k: 'X.....x.X.......', b: 'X..2..x.....2.2.', s: '....x.......X...', h: 'x.xox.x.x.xox.x.', m: '..1...1...1...1.' },
+  vlB:     { k: 'X.....x.X.......', b: 'X..x..x.X...2.2.', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', m: '..1...1...1...1.' },
+  vlF:     { k: 'X.......X.......', b: 'X.......2.2.2222', s: '....X...........', w: '........x.......' },
+  vlC:     { b: 'X.......2...2...', m: '1.1.1.1.1.1.1.1.', d: '........o.......' },
+  vlC2:    { k: 'X.......X...x...', b: 'X...2...X...2.2.', m: '1.1.1.1.1.1.1.1.', d: 'x.......x.......', h: '..o...o...o...o.' },
+  // --- 2 Âu Lạc: martial, war drums ----------------------------------------------
+  alIn:    { d: 'X.......x.......', t: '........3.3.4.4.' },
+  alIn2:   { d: 'X...x...X...x...', s: '........o.o.xxXX', w: '........x.......' },
+  alA:     { k: 'X.....x.X.x.....', s: '....X.......X...', h: 'x.xxx.xxx.xxx.xx', d: 'X...............' },
+  alA2:    { k: 'X.x...x.X.x...x.', s: '....X.......X..o', h: 'x.x.x.x.x.x.x.x.', d: 'X.......X.......', t: '..............21' },
+  alB:     { k: 'X...X...X...X...', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', o: '..x...x...x...x.', d: 'X..x..x.X.......' },
+  alF:     { k: 'X.......X.......', s: '....X...x.x.XxXX', d: '........X...X...' },
+  alC:     { k: 'X..X..X.X..X..X.', s: '....X.......X...', h: 'xoxoxoxoxoxoxoxo', t: '..........1.1.2.', b: 'X...............' },
+  // --- 3 Hoa Lư: misty gongs, oar knocks, rowing 3+3+2 ---------------------------
+  hlMist:  { g: 'X...............', h: '..o.....o.......', m: '......2.......2.' },
+  hlRow:   { k: 'X..x....X..x....', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', m: '......2.......2.' },
+  hlRow2:  { k: 'X..x..x.X..x..x.', s: '....X.......X...', h: 'x.xxx.xxx.xxx.xx', m: '......2.......2.', g: '1...............' },
+  hlBig:   { k: 'X.....x.X.......', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', d: 'X.......x.......', g: 'X...............' },
+  hlF:     { k: 'X.......X.......', s: '....X...........', t: '........1.2.3.4.', d: '............X.X.' },
+  hlHalf:  { k: 'X.........x.....', s: '........X.......', h: 'x.x.x.x.x.x.x.x.', m: '......2.......2.', g: 'x...............' },
+  // --- 4 Lý: temple bells and mõ -------------------------------------------------
+  lyBell:  { l: 'X...............', m: '1...1...1...1...' },
+  lyMo:    { m: '1.1.1.1.1.1.1.1.', h: '..o...o...o...o.', k: 'X.......X.......' },
+  lyMoF:   { m: '1.1.1.1.11111111', k: 'X.......X.......', w: '........x.......' },
+  lyA:     { k: 'X.......X.x.....', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', m: '..1...1...1...1.', l: 'X...............' },
+  lyA2:    { k: 'X.......X.x.....', s: '....X.......X..o', h: 'x.xox.x.x.xox.x.', m: '..1...1...1.1.1.' },
+  lyB:     { k: 'X.....x.X.x.....', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', m: '1.1.1.1.1.1.1.1.', d: 'X.......x.......' },
+  lyF:     { k: 'X.......X.......', s: '....X...x.x.XxXX', m: '1.1.1.1.........', w: '........x.......' },
+  lyHalf:  { l: 'X...............', m: '1...2...1...2...', k: 'X.........x.....', s: '........o.......' },
+  // --- 5 Bạch Đằng: battle march, war drums, tide ---------------------------------
+  bdIn:    { d: 'X.......X.......', w: '........x.......' },
+  bdIn2:   { d: 'X..x..x.X..x..x.', b: 'X...............' },
+  bdMarch: { k: 'X.......X.x.....', s: '....X.....x.X...', h: 'x.x.x.x.x.x.x.x.', d: 'X.......X.......' },
+  bdMarch2:{ k: 'X.....x.X.x.....', s: '....X..o....X.oo', h: 'x.xox.x.x.xox.x.', d: 'X..x....X..x....' },
+  bdF:     { k: 'X.......X.......', s: '....X...xxxxXXXX', d: '........X.X.X.X.' },
+  bdBig:   { k: 'X.x...x.X.x...x.', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', o: '..x...x...x...x.', d: 'X..x..x.X..x..x.', b: 'X...............' },
+  bdTide:  { k: 'X.........x.....', s: '........X.......', h: 'x.x.x.x.x.x.x.x.', d: 'X.....x.....x...' },
+  // --- 6 Tây Đô: stone knocks, heavy half-time ------------------------------------
+  tdIn:    { m: '4.......4...4...', d: 'x...............' },
+  tdInF:   { m: '4...4...4.4.4444', d: 'x.......x...X...', w: '........x.......' },
+  tdA:     { k: 'X.........X.....', s: '........X.......', h: 'x.x.x.x.x.x.x.x.', m: '4...4.4.4...4.4.', d: 'X...............' },
+  tdA2:    { k: 'X.....x...X.....', s: '........X......o', h: 'x.xxx.xxx.xxx.xx', m: '4...4.4.4...4.4.', d: 'X.......x.......' },
+  tdB:     { k: 'X.......X.x.....', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', m: '4.4.4...4.4.4...', d: 'X..x....X.......', b: 'X...............' },
+  tdF:     { k: 'X.......X.......', s: '....X...........', m: '........4.4.4444', d: '............X.XX' },
+  tdC:     { m: '4.......4..4....', d: 'x.......o.......', h: '..o...o...o...o.' },
+  // --- 7 Lê Sơ: festival, phách clicks, trống cơm-like toms ------------------------
+  lsIn:    { m: '3.3.3..33.3.3...', t: '..........1.1...' },
+  lsInF:   { m: '3.3.3.3.3333....', t: '........1.2.3.44', w: '........x.......' },
+  lsA:     { k: 'X.....x.X.......', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', m: '3..3..3.3..3..3.', t: '..............21' },
+  lsA2:    { k: 'X.....x.X.x.....', s: '....X.......X..o', h: 'xxx.xxx.xxx.xxx.', m: '3..3..3.3..3..3.' },
+  lsB:     { k: 'X...X...X...X...', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', o: '..x...x...x...x.', b: 'X.......x.......' },
+  lsF:     { k: 'X.......X.......', s: '....X...........', t: '........1.2.1.2.', m: '3.3.3.3.........', w: '........x.......' },
+  lsC:     { k: 'X.........x.....', s: '........X.......', m: '3..3..3.3..3..3.', h: '..o...o...o...o.' },
+  // --- 8 Phố Hiến / Hội An: lilting 3+3+2, lantern-night chiêng -------------------
+  phIn:    { m: '..1.....1.1.....', h: '..o.......o.....' },
+  phA:     { k: 'X.....x...x.....', s: '........X.......', h: 'x.xx.xx.x.xx.xx.', m: '...1..1....1..1.' },
+  phA2:    { k: 'X.....x...x.....', s: '....o...X.......', h: 'x.xx.xx.x.xx.xx.', m: '...1..1....1..1.', t: '..............21' },
+  phB:     { k: 'X.....x...x.....', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', o: '..x.......x.....', m: '...1..1....1..1.' },
+  phF:     { k: 'X.....x...x.....', s: '....X...x.x.XxXx', m: '...1..1.........' },
+  phC:     { m: '1..1..1.1..1..1.', h: '..o...o...o...o.', k: 'X.........x.....', g: '1...............' },
+  // --- 9 Tây Sơn: trống trận ensemble ---------------------------------------------
+  tsIn:    { d: 'X...x...X...x...', t: '..........3.4.4.' },
+  tsIn2:   { d: 'X.x.X.x.X.x.X2X2', b: 'X...............', w: '........x.......' },
+  tsA:     { k: 'X.x...x.X.x...x.', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', d: 'X..x..x.X..x..x.' },
+  tsA2:    { k: 'X.x.X.x.X.x.X.x.', s: '....X..o....X..o', h: 'xoxoxoxoxoxoxoxo', d: 'X..x..x.X.2.X.2.', t: '..............21' },
+  tsB:     { k: 'X...X...X...X...', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', o: '..x...x...x...x.', d: 'X.......X.x.....', b: 'X...............' },
+  tsF:     { k: 'X.......X.......', s: '....X...XxXxXXXX', d: '........X.2.X2X2' },
+  tsDr1:   { k: 'X.......X.......', d: 'X..x..x.X..x..x.', t: '..1...1...2...2.', b: 'X.......X.......' },
+  tsDr2:   { k: 'X...X...X...X...', d: 'X.1.2.X.X.1.2.X.', t: '1.2.1.2.3.4.3.4.', b: 'X...............' },
+  tsDr3:   { k: 'X..X..X.X..X..X.', d: 'X1x1X.1.X2x2X.2.', t: '..1.1.2...3.3.4.', b: 'X.......2...2...' },
+  tsDrF:   { k: 'X.......X.......', d: 'X.1.X.1.X2X2XXXX', b: 'X...........X...', w: '........x.......' },
+  // --- 10 Huế: court drums, phách, temple bell at night -----------------------------
+  hueIn:   { l: 'X...............', b: '........x.......' },
+  hueIn2:  { b: 'X.......x...2...', m: '3.......3.......' },
+  hueInF:  { d: 'X.......x.x.XxXX', b: 'X...............', w: '........x.......' },
+  hueA:    { k: 'X.......X.......', s: '....o.......X...', h: 'x.x.x.x.x.x.x.x.', d: 'X.......x.......', m: '3...3...3...3...' },
+  hueA2:   { k: 'X.....x.X.......', s: '....X.......X..o', h: 'x.xox.x.x.xox.x.', d: 'X..x....X..x....', m: '3...3...3.3.3...' },
+  hueB:    { k: 'X.....x.X.x.....', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', d: 'X..x..x.X.......', b: 'X...............' },
+  hueF:    { k: 'X.......X.......', s: '....X...x.x.XxXX', d: '........X.X.X.XX', w: '........x.......' },
+  hueNite: { k: 'X.........x.....', s: '........o.......', h: '..o...o...o...o.', m: '3.......3.......', l: 'X...............' },
+  hueNite2:{ k: 'X.........x.....', s: '........o.......', h: '..o...o...o...o.', m: '3.......3...3...' },
+  hueClim: { k: 'X.x...x.X.x...x.', s: '....X.......X...', h: 'xoxoxoxoxoxoxoxo', d: 'X..x..x.X..x..x.', b: 'X.......X.......' },
+  // --- boss: Thời Ảnh machines (bronze against metal) -------------------------------
+  bsIntro: { c: 'X...............', k: 'X.......X.......', s: '............X.XX', b: 'X...............', g: 'X...............' },
+  bsBeat:  { k: 'X..X..X.X..X..X.', s: '....X.......X...', h: 'xoxoxoxoxoxoxoxo', b: 'X.......X.......' },
+  bsBeat2: { k: 'X.xX..X.X.xX..X.', s: '....X..X....X...', h: 'x.x.x.x.x.x.x.x.', b: 'X..2..2.X..2..2.' },
+  bsFill:  { k: 'X..X..X.X.......', s: '....X...XxXxXXXX', h: 'xoxoxoxo........', b: '........X...X...' },
+  bsGong:  { k: 'X..X..X.X..X..X.', s: '....X.......X...', h: 'xoxoxoxoxoxoxoxo', g: 'X...............', b: 'X.......X.......' },
+  // --- final boss ---------------------------------------------------------------------
+  fIntro:  { c: 'X...............', k: 'X.......X.......', s: '............X.XX', d: 'X...............', g: 'X...............' },
+  fWar:    { k: 'XxXxX.XxXxXxX.Xx', s: '....X.......X...', h: 'x.x.x.x.x.x.x.x.', d: 'X.......X.......' },
+  fTaiko:  { k: 'X..X..X.X..X..X.', s: '....X.......X...', h: 'xoxoxoxoxoxoxoxo', d: 'X..X..X.X..X..X.', b: 'X...............' },
+  fHalf:   { k: 'X.........x.....', s: '........X.......', h: 'x.x.x.x.x.x.x.x.', d: 'X.......X.......', g: 'X...............' },
+  fFill:   { k: 'X..X..X.X.......', s: '....X...XxXxXXXX', d: '........X.X.X.X.' },
+  fHero:   { k: 'X.....x.X.x.....', s: '....X.......X.xx', h: 'x.x.x.x.x.x.x.x.', d: 'X..x..x.X.......', b: 'X.......x.......' },
+  // --- clear / results / game over -----------------------------------------------------
+  fan1:    { c: 'X...............', k: 'X...............', b: 'X...............' },
+  fanB:    { k: 'X.......X.......', s: '....x.......x...', d: '..........x.x...' },
+  fanRoll: { k: 'X.......X.......', s: 'o.o.o.o.xxxxXXXX', d: '............X.X.' },
+  goBell:  { l: 'X...............' },
 };
+// "<name>C" = the same groove with a crash on the downbeat (section starts).
+for (const k of Object.keys(DRUM)) {
+  const p = DRUM[k];
+  if (p.c || DRUM[k + 'C']) continue;
+  const q = Object.assign({}, p, { c: 'X...............' });
+  if (q.h) q.h = '.' + q.h.slice(1);
+  DRUM[k + 'C'] = q;
+}
 
 const BASS = {
   drive8:  'R-r-r-r-R-r-o-r-',
-  drive8b: 'R-r-r-o-r-r-5-p-',
   hook8:   'R-r-o-r-R-r-o-r-',
   pulse:   'R.r.r.r.R.r.r.r.',
   long:    'R---------------',
@@ -2399,31 +2435,31 @@ const BASS = {
   ost16b:  'RrrrRrrrRrrrRrbr',
   res:     'R-------5-------',
   gallop:  'R-rrR-rrR-rrR-rr',
-  off8:    '..R-..r-..r-..r-',
-  oct8:    'R-o-r-o-r-o-r-o-',
   tres:    'R..r..r.R..r..r.',
-  tresO:   'R..o..r.R..o..5.',
-  tumbao:  'R-.5..o-..r.5-..',
   drone:   'R-------------5-',
   droneP:  'R.....r.R.....r.',
-  kpopB:   'R..R..R.R..o..r.',
+  row:     'R-----r-5-----r-',   // a slow stroke and recovery (Hoa Lư boats)
+  march:   'R---5---R-r-5-r-',
+  lilt:    'R-...5-.r-...o-.',   // 3+3+2 lilt (Phố Hiến)
+  mach:    'RrRrRrOrRrRrRbRr',   // machine pistons (boss)
 };
 
 const ARP = {
-  arpA:  '0123012301230123',
-  arpB:  '0123432101234321',
-  arpC:  '2310231023102310',
-  arp8:  '0.1.2.3.4.3.2.1.',
-  bell4: '0...2...4...2...',
-  bell8: '4.2.3.1.4.2.5.3.',
-  ost:   '0102010201020102',
-  up16:  '0123456701234567',
-  sweep: '0123456787654321',
-  zig:   '0213021302130213',
-  neon:  '0124012401240124',
-  neon2: '0242024202420242',
-  kotek: '0213243502132435',   // gamelan kotekan: odd/even notes pan L/R = two players interlocking
-  ranat: '0213243546352413',
+  arpA:   '0123012301230123',
+  arpB:   '0123432101234321',
+  arp8:   '0.1.2.3.4.3.2.1.',
+  bell4:  '0...2...4...2...',
+  bell8:  '4.2.3.1.4.2.5.3.',
+  ost:    '0102010201020102',
+  up16:   '0123456701234567',
+  sweep:  '0123456787654321',
+  kotek:  '0213243502132435',   // interlocking: odd/even notes pan L/R
+  glow:   '0.2.4.2.1.3.5.3.',   // lantern / temple shimmer
+  ripple: '0241302413024130',   // water
+  run:    '0123456776543210',   // đàn tranh glissando up and down
+  row:    '0..1..2.0..1..2.',   // rowing 3+3+2
+  cross:  '0..0..0.2..2..3.',   // crossbow volleys (twang)
+  cross2: '0.0.2.0.3.0.2.04',
 };
 
 const STAB = {
@@ -2434,9 +2470,6 @@ const STAB = {
   boss1: 'X..X..X..X..X.X.',
   boss2: 'X-..............',
   fanf:  'X---------------',
-  offb:  '..x-..x-..x-..x-',
-  mont:  'x-.x-.x-..x-.x-.',
-  tres:  'X-.x-.x-........',
 };
 
 const TIMP = {
@@ -2448,937 +2481,1004 @@ const TIMP = {
   boss:  'R.....r.R.....5.',
 };
 
-// Scales (pitch classes) used for the harmony line's passing notes.
+// Scales (pitch classes) for the harmony line's passing notes.
 const SC = {
-  Dmaj: [2, 4, 6, 7, 9, 11, 1],
+  Dbac: [2, 4, 7, 9, 11],             // D điệu Bắc (D E G A B): title / ending
+  Dmin: [2, 4, 5, 7, 9, 10, 0],
 };
+
+// "Lạc Hồng" — the squadron's theme (title chorus, ending, final boss).
+// A rising fourth-and-fifth call in D điệu Bắc that settles on the open 2nd,
+// answers to the 5th, climbs and comes home with a fourth leap to the tonic.
+const LH_CHORDS = 'D Em7 G A Bm7 G Em7,A D';
+const LH_THEME =
+  'A4:3 D5:1 E5:4 A5:6 G5:1 E5:1 ' +
+  'G5:4 E5:2 D5:2 E5:8 ' +
+  'A4:3 D5:1 E5:4 B5:6 A5:1 G5:1 ' +
+  'A5:4 G5:2 E5:2 A5:8 ' +
+  'D6:3 B5:1 A5:4 B5:2 D6:2 E6:4 ' +
+  'D6:4 B5:2 A5:2 G5:4 E5:4 ' +
+  'A4:3 D5:1 E5:4 G5:2 E5:2 A5:4 ' +
+  'D6:12 r:4';
+const LH_COUNTER = 'F#5:16 G5:16 B5:16 C#6:16 D6:16 B5:16 B5:8 C#6:8 A5:16';
 
 const SONGS = {
   // ---------------------------------------------------------------------------
-  // TITLE — "Skyline Asia". D major with a D-pentatonic hook, 112 BPM.
-  // Swell(2, once) -> A(8, erhu) -> B(8, brass chorus) -> C(8, bridge) -> B2(8).
+  // TITLE — "Lạc Hồng". D điệu Bắc (D E G A B) over D-major strings, 104 BPM.
+  // Swell(2, once: bronze drum + gong + tranh run) -> A(8, sáo verse) ->
+  // B(8, the Lạc Hồng theme: brass, choir) -> C(8, đàn nhị bridge in B minor)
+  // -> B2(8, theme with choir, stabs and nhị counter).  ≈ 74 s loop.
   title: {
-    bpm: 112, scale: SC.Dmaj, intro: ['S'], loop: ['A', 'B', 'C', 'B2'],
-    mix: { lead: 1.05, pad: 1.0, arp: 0.85, timp: 0.8, brass: 0.8 },
+    bpm: 104, scale: SC.Dbac, intro: ['S'], loop: ['A', 'B', 'C', 'B2'],
+    mix: { lead: 1.05, pad: 0.95, arp: 0.85, timp: 0.8, brass: 0.8 },
     sections: {
       S: {
         bars: 2, chords: 'Dsus2 Asus4,A', pad: 'swell', padVel: 1, bass: 'long',
-        timp: 'roll2 roll', drums: '- tSwell', arp: 'bell4', arpInst: 'bell', arpLo: 74, arpVel: 0.8,
-        counterInst: 'zither', counterVel: 0.85,
-        counter: 'r:16 D5:1 E5 F#5 A5 B5 D6 E6 F#6 A6:8',
+        timp: 'roll2 roll', drums: 'lhOpen tSwell', counterInst: 'zither', counterVel: 0.85,
+        counter: 'r:16 D5:1 E5 G5 A5 B5 D6 E6 G6 A6:8',
       },
       A: {
-        bars: 8, chords: 'D A/C# Bm F#m G D/F# Em7 Asus4,A', pad: 'hold', padVel: 0.75,
-        bass: 'walk', drums: 'tMarchC tMarch tMarch tFill tMarchC tMarch tMarch tFill',
+        bars: 8, chords: 'D A/C# Bm7 G Em7 D/F# G Asus4,A', pad: 'hold', padVel: 0.7,
+        bass: 'walk', drums: 'lhMarchC lhMarch lhMarch lhFill lhMarchC lhMarch lhMarch lhFill',
         timp: 'hit13 hit1 hit1 roll2 hit13 hit1 hit1 roll2', arp: 'arp8', arpInst: 'zither', arpLo: 62, arpVel: 0.75,
-        leadInst: 'erhu', leadVel: 1,
+        leadInst: 'sao', leadVel: 1,
         lead:
-          'A4:2 B4:2 D5:4 E5:2 F#5:6 ' +
-          'E5:2 D5:2 B4:4 A4:8 ' +
-          'B4:2 D5:2 E5:4 F#5:2 A5:6 ' +
-          'B5:3 A5:1 F#5:4 E5:8 ' +
-          'A4:2 B4:2 D5:4 E5:2 F#5:6 ' +
-          'A5:2 B5:2 D6:4 B5:2 A5:6~ ' +
-          'F#5:3 E5:1 D5:4 E5:2 F#5:2 B4:4 ' +
-          'E5:1 F#5:1 E5:14',
+          'A5:6 B5:1 A5:1 E5:4 D5:4 ' +
+          'E5:3 G5:1 A5:4 E5:8 ' +
+          'D5:6 E5:1 D5:1 B4:4 A4:4 ' +
+          'B4:3 D5:1 E5:4 D5:8* ' +
+          'G5:6 A5:1 G5:1 E5:4 D5:4 ' +
+          'E5:2 G5:2 A5:4~ B5:8 ' +
+          'D6:4 B5:2 A5:2 G5:4 E5:4 ' +
+          'A5:12 r:4',
       },
       B: {
-        bars: 8, chords: 'G A Bm D/F# G A Bm,A D', pad: 'hold', padVel: 1,
-        bass: 'walk', drums: 'tBigC tBig tBig tBig tBigC tBig tBig tFill',
-        timp: 'march march march march march march march roll', arp: 'arpB', arpLo: 66, arpVel: 0.55,
-        stab: '- - - - - - - push', harm: 'dia3', leadVel: 0.95,
-        lead:
-          'D5:2 E5:2 G5:4 F#5:2 E5:2 D5:4 ' +
-          'C#5:2 E5:2 A5:6 B5:2 A5:4 ' +
-          'B5:6 A5:2 F#5:4 D5:4 ' +
-          'E5:6 F#5:2 A5:8 ' +
-          'B5:2 A5:2 G5:4 A5:2 B5:2 D6:4 ' +
-          'C#6:6 B5:2 A5:4 E5:4 ' +
-          'F#5:4 B5:4 A5:4 C#6:4 ' +
-          'D6:12 r:4',
+        bars: 8, chords: LH_CHORDS, pad: 'hold', padVel: 1, choir: 0.45,
+        bass: 'walk', drums: 'lhBigC lhBig lhBig lhBig lhBigC lhBig lhBig lhFill',
+        timp: 'march march march march march march march roll', arp: 'arpB', arpInst: 'zither', arpLo: 66, arpVel: 0.5,
+        stab: '- - - push - - - push', harm: 'dia3', leadVel: 0.95,
+        lead: LH_THEME,
       },
       C: {
-        bars: 8, chords: 'Bm G D A Bm G Em7 A', pad: 'hold', padVel: 0.85,
-        bass: 'half', drums: 'halfC half half half halfC half build build',
+        bars: 8, chords: 'Bm G Em7 A Bm G Em7 A7sus4', pad: 'hold', padVel: 0.85,
+        bass: 'half', drums: 'lhHalfC lhHalf lhHalf lhHalf lhHalfC lhHalf lhBuild lhBuild',
         timp: 'hit1 - - - hit1 - - roll2', arp: 'arpA', arpInst: 'zither', arpLo: 59, arpVel: 0.55,
         leadInst: 'erhu', leadVel: 0.95,
         lead:
-          'F#5:6 E5:2 D5:4 B4:4 ' +
-          'D5:6 E5:2 B4:8 ' +
-          'A4:4 B4:2 D5:2 F#5:8 ' +
-          'E5:12 r:4 ' +
+          'B4:4 D5:4 E5:6 F#5:2 ' +
+          'E5:4 D5:2 B4:2 D5:8^ ' +
+          'G5:6 F#5:2 E5:4 B4:4 ' +
+          'C#5:4 E5:4 A5:8 ' +
           'B5:6 A5:2 F#5:4 E5:4 ' +
-          'D5:4 E5:2 F#5:2 B5:8 ' +
-          'A5:4 G5:2 F#5:2 E5:4 B4:4 ' +
-          'C#5:4 E5:4 A5:8',
+          'D5:4 E5:2 F#5:2 B5:8_ ' +
+          'A5:4 G5:2 F#5:2 E5:4 D5:4 ' +
+          'E5:16',
       },
       B2: null, // filled below
     },
   },
 
   // ---------------------------------------------------------------------------
-  // STAGE 1 — HÀ NỘI "Dawn over the Red River". G "điệu Bắc" pentatonic
-  // (G A C D E), 148 BPM. Đàn bầu-style erhu with slides, đàn tranh runs.
-  // Intro(4, once) -> A(8) -> B(8) -> A2(8) -> B2(8) -> C(8).  ≈ 65 s loop.
+  // STAGE 1 — VĂN LANG "Bình minh trên đồng lúa". A điệu Bắc (A B D E F#),
+  // 124 BPM, archaic and ritual: trống đồng, khèn reed chords, sáo, đàn tranh,
+  // parallel fourths (organum) in the second verse.
+  // Intro(4, once) -> A(8) -> B(8) -> A2(8) -> B2(8) -> C(8).  ≈ 77 s loop.
   stage1: {
-    bpm: 148, scale: [7, 9, 0, 2, 4], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
-    mix: { lead: 1.15, arp: 0.85, brass: 0.75, bass: 0.85 },
+    bpm: 124, scale: [9, 11, 2, 4, 6], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
+    mix: { lead: 1.1, arp: 0.8, pad: 0.9, bass: 0.85 },
     sections: {
       I: {
-        bars: 4, chords: 'G C/G Am7 D7sus4', bass: 'drive8 drive8 drive8 drive8b', drums: 'introC intro intro fillAw',
-        pad: 'swell', padVel: 0.6, counterInst: 'zither', counterVel: 0.9,
-        counter:
-          'G4:1 A4 C5 D5 E5 G5 A5 C6 D6:4 r:4 ' +
-          'E6:1 D6 C6 A5 G5 E5 D5 C5 D5:4 r:4 ' +
-          'A4:1 C5 D5 E5 G5 A5 C6 D6 E6:4 r:4 ' +
-          'D6:2 C6 A5 G5 E5:4 D5:4',
+        bars: 4, chords: 'Asus2 Asus2 Dsus2 E7sus4', pad: 'swell', padInst: 'khen', padVel: 0.9,
+        bass: 'drone', drums: 'vlRitC vlRit vlRit vlRitF', leadInst: 'sao', leadVel: 0.95,
+        lead:
+          'r:4 E5:2 F#5:2 A5:8* ' +
+          'B5:2 A5:2 F#5:4 E5:8 ' +
+          'r:4 D5:2 E5:2 A5:6 B5:2 ' +
+          'A5:4 F#5:4 E5:8',
       },
       A: {
-        bars: 8, chords: 'G C/G Am7 D7sus4 G Em7 C D7sus4', pad: 'hold', padVel: 0.55,
-        bass: 'drive8 drive8 drive8 drive8b', drums: 'driveC drive hnDrive drive2 drive drive hnDrive fillA',
-        arp: 'arp8', arpInst: 'zither', arpLo: 62, arpVel: 0.6, stab: 'syncA',
-        leadInst: 'erhu', leadVel: 1.05,
+        bars: 8, chords: 'Asus2 D Bm7 E7sus4 Asus2 D6 Bm7 E7sus4', pad: 'hold', padInst: 'khen', padVel: 0.6,
+        bass: 'drone drone droneP droneP', drums: 'vlAC vlA vlA vlA2 vlA vlA vlA vlF',
+        arp: 'arp8', arpInst: 'zither', arpLo: 62, arpVel: 0.6,
+        leadInst: 'sao', leadVel: 1.05,
         lead:
-          'D5:6 E5:1 D5:1 C5:2 A4:2 G4:4 ' +
-          'A4:2 C5:2~ D5:8 r:4 ' +
-          'E5:6 G5:1 E5:1 D5:2 C5:2 A4:4 ' +
-          'C5:2 D5:2 A4:2 G4:2 A4:8 ' +
-          'G5:6 A5:1 G5:1 E5:2 D5:2 E5:4 ' +
-          'D5:2 E5:2 G5:4~ A5:8~ ' +
-          'C6:4 A5:2 G5:2 E5:4 D5:2 C5:2 ' +
-          'D5:12~ r:4',
+          'A4:2 B4:2 D5:4 E5:4 F#5:2 E5:2 ' +
+          'D5:6 E5:1 D5:1 B4:4 A4:4 ' +
+          'B4:3 D5:1 E5:4 F#5:2 A5:2 B5:4 ' +
+          'A5:4 E5:4 r:2 E5:2 F#5:2 A5:2 ' +
+          'B5:6 A5:1 F#5:1 E5:4 D5:4 ' +
+          'D5:2 E5:2 F#5:2 A5:2 B5:8* ' +
+          'A5:3 F#5:1 E5:4 D5:2 B4:2 D5:4 ' +
+          'E5:12 r:4',
       },
       B: {
-        bars: 8, chords: 'C D7sus4,D Em7 G C D Em7 Dsus4,D', pad: 'hold', padVel: 0.9,
-        bass: 'hook8', drums: 'hookC hook hook hook hookC hook hook fillT',
-        stab: 'push', arp: 'arpB', arpVel: 0.7,
+        bars: 8, chords: 'Bm7 D E7sus4 Asus2 Bm7 D E7sus4 E7sus4', pad: 'hold', padInst: 'khen', padVel: 0.8,
+        bass: 'pulse', drums: 'vlBC vlB vlB vlB vlBC vlB vlB vlF',
+        arp: 'run', arpInst: 'zither', arpLo: 64, arpVel: 0.45, leadInst: 'sao', leadVel: 1.05,
         lead:
-          'G5:2 A5:2 G5:2 E5:4 D5:2 E5:4 ' +
-          'D5:2 E5:2 G5:2 A5:6 r:2 A5:2 ' +
-          'D6:4 C6:2 A5:2 G5:4 E5:4 ' +
-          'D5:2 E5:2 G5:12 ' +
-          'G5:2 A5:2 G5:2 E5:4 D5:2 E5:4 ' +
-          'D5:2 E5:2 G5:2 A5:4 C6:2 D6:4 ' +
-          'E6:4 D6:2 C6:2 A5:4 G5:2 E5:2 ' +
-          'G5:4 A5:4 D5:8',
+          'F#5:4 A5:4 B5:6 A5:2 ' +
+          'D6:4 B5:2 A5:2 F#5:8 ' +
+          'E5:3 F#5:1 A5:4 B5:2 A5:2 E5:4 ' +
+          'A5:16 ' +
+          'F#5:4 A5:4 B5:4 D6:4 ' +
+          'E6:6 D6:1 B5:1 A5:4 F#5:4 ' +
+          'A5:4 B5:2 A5:2 E5:4 D5:2 E5:2 ' +
+          'E5:12 r:4',
       },
       A2: null, B2: null, // filled below
       C: {
-        bars: 8, chords: 'Am7 Em7 C G Am7 Em7 C D7sus4', pad: 'hold', padVel: 1,
-        bass: 'half half half half half half half pulse', drums: 'halfC half half half halfC half build build',
-        timp: 'hit1 - - - hit1 - - roll2', leadInst: 'zither', leadVel: 1.3,
-        counterInst: 'erhu', counterVel: 0.5,
+        bars: 8, chords: 'Bm7 Bm7 D D Asus2 Asus2 E7sus4 E7sus4', pad: 'hold', padInst: 'khen', padVel: 0.75,
+        bass: 'long', drums: 'vlCC vlC vlC vlC vlC2C vlC2 vlC2 vlF', timp: '- - - - - - - roll2',
+        leadInst: 'zither', leadVel: 1.25, counterInst: 'sao', counterVel: 0.55,
         lead:
-          'A5:1 G5 E5 D5 C5:4 r:2 E5:2 G5:2 A5:2 ' +
-          'G5:4 E5:2 D5:2 E5:8 ' +
-          'C6:1 A5 G5 E5 G5:4 r:2 A5:2 C6:2 D6:2 ' +
-          'E6:4 D6:2 C6:2 D6:8 ' +
-          'A5:1 G5 E5 D5 C5:4 r:2 D5:2 E5:2 G5:2 ' +
-          'A5:4 G5:2 E5:2 G5:8 ' +
-          'E5:2 G5 A5 C6 E6 D6 C6 A5 ' +
-          'D6:12 r:4',
-        counter: 'E5:16 D5:16 C5:16 B4:16 C5:16 B4:16 G4:16 A4:16',
+          'B4:1 D5 E5 F#5 A5:4 r:2 F#5:2 E5:2 D5:2 ' +
+          'E5:4 D5:2 B4:2 D5:8^ ' +
+          'D5:1 E5 F#5 A5 B5:4 r:2 A5:2 B5:2 D6:2 ' +
+          'E6:4 D6:2 B5:2 A5:8 ' +
+          'A5:1 B5 A5 F#5 E5:4 r:2 D5:2 E5:2 F#5:2 ' +
+          'A5:4 F#5:2 E5:2 D5:8 ' +
+          'E5:2 F#5 A5 B5 D6 E6 D6 B5 ' +
+          'A5:12 r:4',
+        counter: 'F#5:16 D5:16 A5:16 F#5:16 E5:16 A4:16 B4:16 E5:16',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // STAGE 2 — BANGKOK "Golden Spires". A major pentatonic (A B C# E F#),
-  // 152 BPM. Pi-like erhu, ranat-style zither 16ths, khong wong bells,
-  // heterophonic octave doubling. Intro(4) -> A B A2 B2 C.  ≈ 63 s loop.
+  // STAGE 2 — ÂU LẠC "Thành Cổ Loa". E minor pentatonic (E G A B D), 144 BPM.
+  // Martial: crossbow-like twang volleys, war drums, đàn nhị verse, brass
+  // chorus with a B7 drive, a staccato "volley" bridge in A minor.
+  // Intro(4) -> A B A2 B2 C.  ≈ 67 s loop.
   stage2: {
-    bpm: 152, scale: [9, 11, 1, 4, 6], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
-    mix: { lead: 1.1, arp: 0.8, brass: 0.75, bass: 0.85 },
+    bpm: 144, scale: [4, 7, 9, 11, 2], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
+    mix: { lead: 1.1, arp: 0.9, brass: 0.85, bass: 0.9 },
     sections: {
       I: {
-        bars: 4, chords: 'A E/G# F#m E', bass: 'pulse', drums: 'thaiC thai thai thaiF',
-        arp: 'ranat', arpInst: 'zither', arpLo: 69, arpVel: 0.75, timp: 'hit1 - - roll2',
-        counterInst: 'bell', counterVel: 0.7,
-        counter: 'A5:8 E5:8 C#6:8 B5:8 A5:8 F#5:8 E5:8 B5:8',
+        bars: 4, chords: 'E5 E5 D5 E5', bass: 'gallop', drums: 'alIn alIn alIn alIn2',
+        arp: 'cross', arpInst: 'twang', arpLo: 52, arpVel: 0.9, timp: 'hit1 - hit1 roll2',
+        counterInst: 'erhu', counterVel: 0.7,
+        counter: 'r:8 E5:2 G5:2 A5:4 B5:12 r:4 r:8 D5:2 E5:2 G5:4 A5:8 B5:8',
       },
       A: {
-        bars: 8, chords: 'A F#m Bm7 E A F#m D E', pad: 'hold', padVel: 0.55,
-        bass: 'drive8 drive8 drive8 drive8b', drums: 'thaiC thai thai thai2 thai thai thai thaiF',
-        arp: 'arp8', arpInst: 'zither', arpLo: 64, arpVel: 0.65,
+        bars: 8, chords: 'Em D Em Bm Em D C D', pad: 'hold', padVel: 0.55,
+        bass: 'drive8', drums: 'alAC alA alA alA2 alA alA alA2 alF',
+        arp: 'cross2', arpInst: 'twang', arpLo: 59, arpVel: 0.7, stab: 'syncA',
         leadInst: 'erhu', leadVel: 1.05,
         lead:
-          'E5:2 F#5:2 A5:4 F#5:2 E5:2 C#5:4 ' +
-          'B4:2 C#5:2 E5:2 F#5:1 E5:1 C#5:8 ' +
-          'B4:2 C#5:2 B4:2 A4:2 F#4:4 A4:4 ' +
-          'B4:3 C#5:1 B4:4 E5:8 ' +
-          'E5:2 F#5:2 A5:4 B5:2 A5:2 F#5:4 ' +
-          'A5:2 B5:2 C#6:2 B5:1 A5:1 F#5:8 ' +
-          'E5:2 F#5:2 E5:2 C#5:2 B4:4 A4:4 ' +
-          'B4:2 C#5:2 E5:12',
+          'E5:3 E5:1 G5:2 A5:2 B5:4 A5:2 G5:2 ' +
+          'A5:6 G5:1 A5:1 D5:8 ' +
+          'E5:3 E5:1 G5:2 A5:2 B5:4 D6:2 B5:2 ' +
+          'A5:4 B5:2 A5:2 F#5:4 D5:4 ' +
+          'E5:2 G5:2 B5:4 D6:2 B5:2 E6:4 ' +
+          'D6:4 B5:2 A5:2 B5:4 A5:2 G5:2 ' +
+          'E5:4 G5:2 A5:2 B5:4 G5:2 E5:2 ' +
+          'D5:4 E5:2 G5:2 F#5:8',
       },
       B: {
-        bars: 8, chords: 'D E C#m F#m Bm7 E A E', pad: 'hold', padVel: 0.9,
-        bass: 'hook8', drums: 'hookC hook thai2 hook hookC hook thai2 fillT',
-        arp: 'ranat', arpInst: 'zither', arpLo: 69, arpVel: 0.5, stab: 'push',
+        bars: 8, chords: 'C D Em Em C D B7 B7', pad: 'hold', padVel: 0.9,
+        bass: 'hook8', drums: 'alBC alB alB alB alBC alB alB alF',
+        arp: 'cross', arpInst: 'twang', arpLo: 59, arpVel: 0.55, stab: '- - - push - - - push',
+        timp: 'hit1 - hit1 - hit1 - roll2 roll',
         lead:
-          'F#5:2 A5:2 B5:4 A5:2 F#5:2 A5:4 ' +
-          'B5:2 C#6:2 E6:4 C#6:4 B5:4 ' +
-          'C#6:6 B5:2 A5:2 G#5:2 E5:4 ' +
-          'F#5:12 r:4 ' +
-          'F#5:2 A5:2 B5:4 A5:2 F#5:2 E5:4 ' +
-          'E5:2 F#5:2 A5:2 B5:2 C#6:4 B5:4 ' +
-          'A5:2 B5:2 C#6:2 E6:2 F#6:4 E6:4 ' +
-          'E6:2 C#6:2 B5:2 A5:2 B5:8',
+          'G5:2 A5:2 B5:4 E6:6 D6:2 ' +
+          'D6:4 A5:4 F#5:4 A5:4 ' +
+          'B5:3 A5:1 G5:4 E5:4 G5:4 ' +
+          'E5:12 r:2 B4:2 ' +
+          'G5:2 A5:2 B5:4 E6:4 G6:4 ' +
+          'F#6:4 E6:2 D6:2 A5:8 ' +
+          'B5:4 D#6:4 F#6:4 D#6:4 ' +
+          'B5:12 r:4',
       },
       A2: null, B2: null,
       C: {
-        bars: 8, chords: 'F#m D A E F#m D Bm7 E', pad: 'hold', padVel: 0.85,
-        bass: 'half', drums: 'halfC half half half halfC half build build',
-        arp: 'bell4', arpInst: 'zither', arpLo: 57, arpVel: 0.7, timp: 'hit1 - - - hit1 - - roll2',
-        leadInst: 'bell', leadVel: 1.5, counterInst: 'erhu', counterVel: 0.5,
+        bars: 8, chords: 'Am Em Am B7 Am Em C B7', pad: 'hold', padVel: 0.8,
+        bass: 'gallop', drums: 'alCC alC alC alF alCC alC alC alF',
+        arp: 'up16', arpInst: 'twang', arpLo: 57, arpVel: 0.45, stab: 'hits4', timp: 'march march march roll2',
+        leadVel: 1,
         lead:
-          'C#6:2 B5:2 A5:2 F#5:2 A5:2 B5:2 C#6:4 ' +
-          'A5:2 F#5:2 E5:2 F#5:2 A5:8 ' +
-          'C#6:2 E6:2 C#6:2 B5:2 A5:4 E5:4 ' +
-          'B5:2 A5:2 F#5:2 E5:2 B4:8 ' +
-          'C#6:2 B5:2 A5:2 F#5:2 A5:2 B5:2 C#6:4 ' +
-          'F#6:2 E6:2 C#6:2 B5:2 A5:8 ' +
-          'B5:2 C#6:2 B5:2 A5:2 F#5:4 B5:4 ' +
-          'E6:12 r:4',
-        counter: 'A5:16 F#5:16 E5:16 E5:16 A5:16 F#5:16 F#5:16 G#5:16',
+          "A5:2' C6:2' B5:2' A5:2' E5:4 G5:4 " +
+          "B5:2' G5:2' E5:2' D5:2' E5:8 " +
+          "A5:2' C6:2' B5:2' A5:2' E6:4 D6:4 " +
+          'D#6:4 B5:4 F#5:4 A5:4 ' +
+          "C6:2' B5:2' A5:2' E5:2' A5:4 C6:4 " +
+          "B5:2' G5:2' E5:2' G5:2' B5:8 " +
+          'C6:4 E6:4 G6:4 E6:4 ' +
+          'D#6:8 F#6:8',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // STAGE 3 — KUALA LUMPUR "Monsoon Towers". A harmonic minor, 156 BPM.
-  // Joget 3+3+2 pulse, biola-like erhu with turns, storm brass and stabs.
-  // Intro(4) -> A B A2 B2 C.  ≈ 62 s loop.
+  // STAGE 3 — HOA LƯ "Sông núi Tràng An". C điệu Bắc (C D F G A), 132 BPM.
+  // Misty and majestic: big gongs, oar knocks on the temple mõ, rowing 3+3+2
+  // bass and arps, sáo echoing in the dotted delay, a boat-song (hò-like) call
+  // and response bridge on đàn tranh.  Intro(4) -> A B A2 B2 C.  ≈ 73 s loop.
   stage3: {
-    bpm: 156, scale: [9, 11, 0, 2, 4, 5, 8], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
-    mix: { lead: 1.15, arp: 0.75, brass: 0.85, bass: 0.9 },
+    bpm: 132, scale: [0, 2, 5, 7, 9], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
+    mix: { lead: 1.1, pad: 1.0, arp: 0.8, bass: 0.85 },
     sections: {
       I: {
-        bars: 4, chords: 'Am Am Dm E7', bass: 'tres tres tres tresO', drums: 'jogetC joget joget jogetF',
-        stab: 'tres', arp: 'zig', arpVel: 0.7, timp: 'hit1 - hit1 roll2', pad: 'swell', padVel: 0.7,
+        bars: 4, chords: 'Csus2 Csus2 Bbadd9 Gsus4', pad: 'swell', padVel: 0.8,
+        bass: 'long', drums: 'hlMistC hlMist hlMist hlMist', arp: 'ripple', arpInst: 'zither', arpLo: 64, arpVel: 0.4,
+        leadInst: 'sao', leadVel: 1,
+        lead:
+          'r:8 G5:2 A5:2 C6:4* ' +
+          'D6:8 C6:4 A5:4 ' +
+          'r:8 F5:2 G5:2 A5:4 ' +
+          'G5:12 r:4',
       },
       A: {
-        bars: 8, chords: 'Am Dm E7 Am F Dm E7 E7', pad: 'hold', padVel: 0.55,
-        bass: 'tres tres tres tresO', drums: 'jogetC joget joget joget joget joget joget jogetF',
-        arp: 'arp8', arpInst: 'zither', arpLo: 64, arpVel: 0.6, stab: 'tres - tres -',
-        leadInst: 'erhu', leadVel: 1.05,
+        bars: 8, chords: 'Csus2 Fadd9 Dm7 Gsus4 Csus2 Am7 Bbadd9 Gsus4', pad: 'hold', padVel: 0.7,
+        bass: 'row', drums: 'hlRowC hlRow hlRow hlRow2 hlRow hlRow hlRow hlF',
+        arp: 'row', arpInst: 'zither', arpLo: 60, arpVel: 0.6,
+        leadInst: 'sao', leadVel: 1.05,
         lead:
-          'E5:3 F5:1 E5:2 C5:2 A4:2 B4:1 C5:1 E5:4 ' +
-          'F5:3 G5:1 F5:2 D5:2 A4:4 D5:4 ' +
-          'G#4:2 B4:2 D5:2 F5:1 E5:1 D5:4 B4:4 ' +
-          'C5:2 B4:2 A4:12 ' +
-          'A5:3 G5:1 F5:2 E5:2 F5:2 A5:2 C6:4 ' +
-          'D6:3 C6:1 A5:2 F5:2 D5:4 F5:4 ' +
-          'E5:2 F5:2 G#5:2 A5:2 B5:4 D6:4 ' +
-          'C6:1 B5:1 G#5:2 E5:12',
+          'C5:4 D5:2 F5:2 G5:6 A5:2 ' +
+          'A5:4 G5:2 F5:2 D5:8 ' +
+          'F5:3 G5:1 A5:4 C6:4 A5:4 ' +
+          'G5:12 r:4 ' +
+          'C6:4 D6:2 C6:2 A5:6 G5:2 ' +
+          'A5:4 C6:2 A5:2 G5:4 D5:4 ' +
+          'F5:4 G5:2 A5:2 D6:6 C6:2 ' +
+          'G5:12 r:4',
       },
       B: {
-        bars: 8, chords: 'F G Am Am Dm E7 F E7', pad: 'hold', padVel: 0.9,
-        bass: 'tresO', drums: 'stormC storm storm storm stormC storm storm jogetF',
-        stab: 'syncA', arp: 'zig', arpVel: 0.55,
+        bars: 8, chords: 'Fadd9 Gsus4 Am7 Dm7 Bbadd9 Csus2 Dm7 Gsus4,G', pad: 'hold', padVel: 0.95, choir: 0.45,
+        bass: 'row', drums: 'hlBigC hlBig hlBig hlBig hlBigC hlBig hlBig hlF',
+        arp: 'arpB', arpInst: 'zither', arpLo: 62, arpVel: 0.5, timp: 'hit1 - hit1 - hit1 - hit1 roll2',
+        leadInst: 'erhu', leadVel: 1.05,
         lead:
-          'A5:2 C6:2 A5:2 F5:2 r:2 F5:2 G5:2 A5:2 ' +
-          'B5:3 A5:1 G5:2 D5:2 r:2 D5:2 E5:2 G5:2 ' +
-          'A5:2 C6:2 E6:4 D6:2 C6:2 B5:4 ' +
-          'C6:3 B5:1 A5:12 ' +
-          'D6:2 F6:2 D6:2 A5:2 r:2 A5:2 B5:2 C6:2 ' +
-          'B5:3 C6:1 B5:2 G#5:2 E5:4 G#5:4 ' +
-          'A5:2 B5:2 C6:2 D6:2 E6:2 F6:2 E6:2 D6:2 ' +
-          'E6:4 D6:2 C6:2 B5:4 G#5:4',
+          'F5:6 A5:2 C6:4 A5:4 ' +
+          'G5:6 A5:2 D6:4 C6:4 ' +
+          'C6:4 A5:2 G5:2 A5:8 ' +
+          'F5:4 G5:2 A5:2 D5:8^ ' +
+          'D6:6 C6:2 A5:4 F5:4 ' +
+          'G5:6 A5:2 C6:4 D6:4 ' +
+          'F6:4 D6:2 C6:2 A5:4 G5:4 ' +
+          'G5:12 r:4',
       },
       A2: null, B2: null,
       C: {
-        bars: 8, chords: 'Dm Am Bb E7 Dm Am Bb,E E7', pad: 'hold', padVel: 1,
-        bass: 'half half half half half half half pulse', drums: 'halfC half half half halfC half build build',
-        timp: 'roll2 hit1 roll2 hit1 roll2 hit1 hit1 roll2', arp: 'sweep', arpInst: 'zither', arpLo: 57, arpVel: 0.5,
-        leadVel: 0.95, harm: 'dia3',
+        bars: 8, chords: 'Dm7 Am7 Bbadd9 Csus2 Dm7 Am7 Bbadd9 Gsus4', pad: 'hold', padVel: 0.8,
+        bass: 'half', drums: 'hlHalfC hlHalf hlHalf hlHalf hlHalfC hlHalf hlRow hlF',
+        leadInst: 'zither', leadVel: 1.25, counterInst: 'sao', counterVel: 0.55,
         lead:
-          'F5:6 E5:2 D5:4 A5:4 ' +
-          'E5:12 C5:4 ' +
-          'D5:6 F5:2 Bb5:8 ' +
-          'G#5:6 B5:2 E5:8 ' +
-          'F5:4 A5:4 D6:6 C6:2 ' +
-          'C6:4 B5:4 A5:8 ' +
-          'Bb5:6 A5:2 G#5:6 F5:2 ' +
-          'E5:4 F5:2 G#5:2 B5:4 D6:4',
+          'D5:2 F5:1 G5:1 A5:4 r:4 G5:2 A5:2 ' +
+          'C6:4 A5:2 G5:2 A5:8 ' +
+          'F5:2 G5:1 A5:1 C6:4 r:4 D6:2 C6:2 ' +
+          'A5:4 G5:2 F5:2 G5:8 ' +
+          'D6:2 F6:1 D6:1 C6:4 r:4 A5:2 C6:2 ' +
+          'D6:4 C6:2 A5:2 G5:8 ' +
+          'F5:2 G5 A5 C6 D6 F6 G6 F6 ' +
+          'D6:12 r:4',
+        counter: 'A4:16 E5:16 F5:16 G5:16 A5:16 E5:16 D5:16 D5:16',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // STAGE 4 — SINGAPORE "Neon Merlion". F minor, Chinese yu-mode pentatonic
-  // hook (F Ab Bb C Eb), 144 BPM synthwave / EDM: four-on-the-floor, offbeat
-  // bass, 16th arps. Intro(4) -> A B A2 B2 C.  ≈ 67 s loop.
+  // STAGE 4 — LÝ / THĂNG LONG "Rồng bay". F điệu Bắc (F G Bb C D), 140 BPM.
+  // Serene but driving: temple bells and mõ 16ths, đàn tranh arpeggios, a sáo
+  // verse, a coiling "dragon" motif on đàn nhị doubled at the octave, a
+  // temple bridge with bells, choir and a borrowed Eb.
+  // Intro(4) -> A B A2 B2 C.  ≈ 69 s loop.
   stage4: {
-    bpm: 144, scale: [5, 8, 10, 0, 3], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
-    mix: { lead: 1.1, arp: 0.95, brass: 0.8, bass: 1.0, pad: 0.9 },
+    bpm: 140, scale: [5, 7, 10, 0, 2], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
+    mix: { lead: 1.1, arp: 0.85, pad: 0.95, timp: 0.9 },
     sections: {
       I: {
-        bars: 4, chords: 'Fm Db Eb Cm', pad: 'swell', padVel: 0.8, bass: '- - off8 off8',
-        drums: 'edmBrk edmBrk edmBrk edmBuild', arp: 'neon', arpLo: 60, arpVel: 0.8,
+        bars: 4, chords: 'Fsus2 Fsus2 Gm7 Csus4', pad: 'swell', padVel: 0.7,
+        bass: 'long', drums: 'lyBell lyMo lyBell lyMoF', arp: 'run', arpInst: 'zither', arpLo: 65, arpVel: 0.55,
+        counterInst: 'bell', counterVel: 0.6,
+        counter: 'C6:8 F6:8 D6:8 C6:8 Bb5:8 D6:8 C6:16',
       },
       A: {
-        bars: 8, chords: 'Fm Db Eb Cm Fm Db Bbm Eb', pad: 'hold', padVel: 0.6,
-        bass: 'off8', drums: 'edmC edm edm edm edm edm edm edmBuild',
-        arp: 'neon', arpLo: 60, arpVel: 0.7, leadInst: 'soft', leadVel: 1.1,
+        bars: 8, chords: 'Fsus2 Dm7 Bbadd9 Csus4 Fsus2 Gm7 Bbadd9 Csus4', pad: 'hold', padVel: 0.6,
+        bass: 'drive8', drums: 'lyAC lyA2 lyA lyA2 lyA lyA2 lyA lyF',
+        arp: 'up16', arpInst: 'zither', arpLo: 62, arpVel: 0.45,
+        leadInst: 'sao', leadVel: 1.05,
         lead:
-          'C5:3 Eb5:1 F5:4 Eb5:2 C5:2 Ab4:4 ' +
-          'Bb4:2 Ab4:2 F4:4 Ab4:8 ' +
-          'Bb4:3 C5:1 Eb5:4 F5:2 Eb5:2 Bb4:4 ' +
-          'C5:12 r:4 ' +
-          'F5:3 Ab5:1 Bb5:4 Ab5:2 F5:2 Eb5:4 ' +
-          'F5:2 Eb5:2 C5:4 Ab4:8 ' +
-          'Bb4:2 C5:2 Eb5:2 F5:2 Ab5:4 F5:4 ' +
-          'Eb5:4 F5:2 Eb5:2 Bb4:8',
-      },
-      B: {
-        bars: 8, chords: 'Db Eb Cm Fm Db Eb Fm Fm', pad: 'hold', padVel: 0.9,
-        bass: 'oct8', drums: 'edmC edm16 edm16 edm16 edmC edm16 edm16 edmBuild',
-        arp: 'neon2', arpLo: 65, arpVel: 0.6, stab: 'offb', harm: 'oct',
-        lead:
-          'Ab5:2 F5:2 Ab5:2 Bb5:4 Ab5:2 F5:4 ' +
-          'Eb5:2 F5:2 Eb5:2 C5:4 Bb4:2 Eb5:4 ' +
-          'C5:2 Eb5:2 F5:2 Ab5:4 Bb5:2 C6:4 ' +
-          'C6:6 Bb5:1 Ab5:1 F5:8 ' +
-          'Ab5:2 F5:2 Ab5:2 Bb5:4 Ab5:2 F5:4 ' +
-          'Eb5:2 F5:2 Ab5:2 Bb5:4 C6:2 Eb6:4 ' +
-          'F6:4 Eb6:2 C6:2 Bb5:4 Ab5:4 ' +
-          'F5:12 r:4',
-      },
-      A2: null, B2: null,
-      C: {
-        bars: 8, chords: 'Db Ab Eb Bbm Db Ab Eb Eb', pad: 'hold', padVel: 0.95,
-        bass: 'long long long long off8 off8 off8 off8', drums: 'edmBrk edmBrk edmBrk edmBrk edm edm edmBuild edmBuild',
-        arp: 'neon2', arpLo: 56, arpVel: 0.6, leadInst: 'bell', leadVel: 1.5,
-        lead:
-          'F5:2 Ab5:2 C6:2 Ab5:2 Eb6:4 C6:4 ' +
-          'Eb6:2 C6:2 Ab5:2 F5:2 Ab5:8 ' +
-          'Bb5:2 C6:2 Eb6:2 F6:2 Eb6:8 ' +
-          'Db6:2 C6:2 Bb5:4 F5:8 ' +
-          'F5:2 Ab5:2 C6:2 Ab5:2 Eb6:4 C6:4 ' +
-          'Eb6:2 F6:2 Eb6:2 C6:2 Ab5:8 ' +
-          'Bb5:2 C6:2 Eb6:4 Bb5:2 C6:2 Eb6:4 ' +
-          'F6:12 r:4',
-      },
-    },
-  },
-
-  // ---------------------------------------------------------------------------
-  // STAGE 5 — JAKARTA "Gamelan Haze". Pelog-like subset E F G B C, 146 BPM.
-  // Kotekan bells (odd/even notes panned L/R), balungan counter, suling-like
-  // soft lead, kendang toms and gong hits. Intro(4) -> A B A2 B2 C. ≈ 66 s.
-  stage5: {
-    bpm: 146, scale: [4, 5, 7, 11, 0], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
-    mix: { lead: 1.15, arp: 0.75, brass: 0.7, bass: 0.85, timp: 1.1 },
-    sections: {
-      I: {
-        bars: 4, chords: 'Em Em C Em', bass: 'long - half pulse', drums: 'fan1 - kendC kendF',
-        arp: 'kotek', arpInst: 'bell', arpLo: 76, arpVel: 0.6, timp: 'hit1 - hit1 roll2',
-        counterInst: 'bell', counterVel: 0.8,
-        counter: 'B4:4 G4 E4 G4 C5:4 B4 G4 E4 F4:4 G4 C5 B4 E5:8 B4:8',
-      },
-      A: {
-        bars: 8, chords: 'Em C Fmaj7 Em C Em Fmaj7 Em', pad: 'hold', padVel: 0.5,
-        bass: 'drive8 drive8 drive8 drive8b', drums: 'kendC kend kend kend2 kend kend kend kendF',
-        arp: 'kotek', arpInst: 'bell', arpLo: 76, arpVel: 0.5, timp: 'hit1 - - - hit1 - - -',
-        leadInst: 'soft', leadVel: 1.15, counterInst: 'bell', counterVel: 0.55,
-        lead:
-          'B4:3 C5:1 B4:2 G4:2 E4:4 r:2 F4:1 G4:1 ' +
-          'C5:6 B4:1 C5:1 E5:4 C5:4 ' +
-          'F5:3 E5:1 C5:2 B4:2 C5:8 ' +
-          'B4:3 G4:1 E4:12 ' +
-          'E5:3 F5:1 E5:2 C5:2 G4:4 r:2 B4:1 C5:1 ' +
-          'B4:6 G4:2 E5:4 G5:4 ' +
-          'F5:3 G5:1 F5:2 E5:2 C5:4 E5:4 ' +
-          'E5:12 r:4',
-        counter:
-          'B4:4 G4 E4 G4 C5:4 E5 C5 G4 F4:4 C5 F5 E5 B4:4 G4 E4:8 ' +
-          'C5:4 G4 E4 G4 B4:4 E5 G5 E5 F5:4 E5 C5 B4 E5:8 B4:8',
-      },
-      B: {
-        bars: 8, chords: 'C Fmaj7 Em Em C Fmaj7 G Em', pad: 'hold', padVel: 0.85,
-        bass: 'hook8', drums: 'kendC kend2 kend2 kend2 kendC kend2 kend2 kendF',
-        arp: 'kotek', arpInst: 'bell', arpLo: 76, arpVel: 0.45, timp: 'hit1 - hit1 - hit1 - hit1 roll2',
-        lead:
-          'E5:2 G5:2 C6:2 B5:2 G5:4 E5:4 ' +
-          'F5:2 G5:2 C6:4 B5:2 C6:2 E6:4 ' +
-          'B5:6 C6:1 B5:1 G5:4 E5:4 ' +
-          'F5:2 E5:2 B4:12 ' +
-          'E5:2 G5:2 C6:2 B5:2 G5:4 E5:4 ' +
-          'F5:2 G5:2 C6:4 E6:2 F6:2 E6:4 ' +
-          'B5:3 C6:1 B5:2 G5:2 F5:4 G5:4 ' +
-          'E5:12 r:4',
-      },
-      A2: null, B2: null,
-      C: {
-        bars: 8, chords: 'Em Em Fmaj7 Fmaj7 C C Em Em', pad: 'hold', padVel: 0.9,
-        bass: 'long', drums: 'fan1 - kend - fan1 - kend kendF',
-        arp: 'bell4', arpInst: 'bell', arpLo: 64, arpVel: 0.8, timp: 'hit1 - - - hit1 - - roll2',
-        leadInst: 'soft', leadVel: 1.1,
-        lead:
-          'E5:6 F5:1 E5:1 B4:8 ' +
-          'C5:3 B4:1 G4:4 E4:8 ' +
-          'F4:4 G4:4 C5:8 ' +
-          'B4:3 C5:1 F5:12 ' +
-          'E5:6 G5:1 E5:1 C5:8 ' +
-          'B4:3 C5:1 E5:4 G5:8 ' +
-          'F5:3 G5:1 F5:4 E5:8 ' +
-          'B4:12 r:4',
-      },
-    },
-  },
-
-  // ---------------------------------------------------------------------------
-  // STAGE 6 — MANILA "Sunset Bay Fiesta". F major, 150 BPM, Latin-tinged:
-  // son clave, tumbao bass, montuno stabs, rondalla-style zither (tremolo in
-  // the D-minor bridge), mariachi-like brass thirds. Intro(4) -> A B A2 B2 C.
-  stage6: {
-    bpm: 150, scale: [5, 7, 9, 10, 0, 2, 4], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
-    mix: { lead: 1.15, arp: 0.8, brass: 0.85, bass: 0.9 },
-    sections: {
-      I: {
-        bars: 4, chords: 'F C/E Dm Bb,C', bass: 'tumbao', drums: 'latinC latin latin latinF',
-        stab: 'mont', pad: 'swell', padVel: 0.6,
-      },
-      A: {
-        bars: 8, chords: 'F Dm Bb C F Dm Gm7 C7', pad: 'hold', padVel: 0.5,
-        bass: 'tumbao', drums: 'latinC latin latin latin2 latin latin latin latinF',
-        stab: 'mont', arp: 'arp8', arpLo: 65, arpVel: 0.5,
-        leadInst: 'zither', leadVel: 1.3,
-        lead:
-          'C5:2 F5:3 A5:3 G5:2 F5:2 E5:2 F5:2 ' +
-          'D5:3 F5:3 A5:4 G5:2 F5:4 ' +
-          'D5:2 Bb4:3 D5:3 F5:2 E5:2 D5:4 ' +
-          'E5:3 G5:3 C6:10 ' +
-          'C6:2 A5:3 F5:3 G5:2 A5:2 Bb5:2 A5:2 ' +
-          'F5:3 D5:3 A4:4 D5:2 F5:4 ' +
-          'G5:2 Bb5:3 D6:3 C6:2 Bb5:2 A5:2 G5:2 ' +
-          'E5:3 G5:3 Bb5:6 r:4',
-      },
-      B: {
-        bars: 8, chords: 'Bb C Am Dm Gm C F C7', pad: 'hold', padVel: 0.9,
-        bass: 'tumbao', drums: 'latinC latin2 latin2 latin2 latinC latin2 latin2 latinF',
-        stab: 'push', arp: 'arpB', arpLo: 65, arpVel: 0.6, harm: 'dia3',
-        lead:
-          'F5:2 F5:1 G5:1 F5:2 D5:2 F5:3 Bb5:3 A5:2 ' +
-          'G5:6 E5:2 C5:8 ' +
-          'E5:2 E5:1 F5:1 E5:2 C5:2 E5:3 A5:3 G5:2 ' +
-          'F5:6 E5:2 D5:8 ' +
-          'D5:2 G5:3 Bb5:3 D6:4 C6:2 Bb5:2 ' +
-          'C6:3 Bb5:3 A5:2 G5:4 E5:4 ' +
-          'F5:2 A5:3 C6:3 F6:8 ' +
-          'E6:2 D6:2 C6:2 Bb5:2 G5:4 E5:4',
-      },
-      A2: null, B2: null,
-      C: {
-        bars: 8, chords: 'Dm C Bb A Dm C Bb,A Gm7,C7', pad: 'hold', padVel: 0.9,
-        bass: 'half half half half tumbao tumbao tumbao tumbao', drums: 'halfC half half half latinC latin latin build',
-        timp: 'hit1 - - roll2 - - - roll2', leadInst: 'zither', leadVel: 1.25,
-        counterInst: 'soft', counterVel: 0.55,
-        lead:
-          'A5:1 A5 A5 A5 F5:2 D5:2 A5:1 A5 A5 A5 F5:4 ' +
-          'G5:1 G5 G5 G5 E5:2 C5:2 G5:1 G5 G5 G5 E5:4 ' +
-          'F5:1 F5 F5 F5 D5:2 Bb4:2 D5:2 F5:2 Bb5:4 ' +
-          'A5:6 G5:1 F5:1 E5:2 C#5:2 A4:4 ' +
-          'D6:1 D6 D6 D6 A5:2 F5:2 D6:1 D6 D6 D6 A5:4 ' +
-          'E6:1 E6 E6 E6 C6:2 G5:2 E6:1 E6 E6 E6 C6:4 ' +
-          'D6:2 C6:2 Bb5:2 A5:2 C#6:2 Bb5:2 A5:2 G5:2 ' +
-          'Bb5:4 A5:2 G5:2 E5:4 C5:4',
-        counter: 'D5:16 E5:16 F5:16 E5:16 F5:16 G5:16 F5:8 E5:8 D5:8 E5:8',
-      },
-    },
-  },
-
-  // ---------------------------------------------------------------------------
-  // STAGE 7 — NEW DELHI "Dust of Kings". Raga Bhairav-like mode on C
-  // (C Db E F G Ab B), 160 BPM. Drone bass, tabla-like toms, shehnai-like
-  // erhu with meend slides, a fast taan section ending in a tihai.
-  // Intro(4) -> A B A2 B2 C B.  ≈ 72 s loop.
-  stage7: {
-    bpm: 160, scale: [0, 1, 4, 5, 7, 8, 11], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C', 'B'],
-    mix: { lead: 1.15, arp: 0.8, brass: 0.8, bass: 0.95, pad: 0.85 },
-    sections: {
-      I: {
-        bars: 4, chords: 'C5 C5 C5 Db,C', pad: 'swell', padVel: 0.8, bass: 'drone',
-        drums: '- tabla tabla tabFill', leadInst: 'erhu', leadVel: 0.95,
-        lead:
-          'C5:8 Db5:4~ C5:4 ' +
-          'E5:6 F5:2~ E5:4 Db5:2 C5:2 ' +
-          'B4:4 C5:4 Db5:4~ E5:4 ' +
-          'F5:2 E5:2 Db5:4 C5:8',
-      },
-      A: {
-        bars: 8, chords: 'C Db C C Fm Db C,Db C', pad: 'hold', padVel: 0.55,
-        bass: 'droneP', drums: 'tablaC tabla tabla tabla2 tabla tabla tabla2 tabFill',
-        arp: 'arp8', arpInst: 'zither', arpLo: 60, arpVel: 0.55,
-        leadInst: 'erhu', leadVel: 1.05,
-        lead:
-          'G4:2 Ab4:1 G4:1 C5:4 Db5:2 C5:2 B4:4 ' +
-          'C5:2 Db5:2 F5:4~ E5:4 Db5:4 ' +
-          'E5:3 F5:1 E5:2 Db5:2 C5:4 B4:2 C5:2 ' +
-          'C5:12 r:4 ' +
-          'F5:2 G5:2 Ab5:4 G5:2 F5:2 E5:4 ' +
-          'F5:3 Ab5:1 G5:2 F5:2 Db5:8~ ' +
-          'E5:4 G5:4 Ab5:4 F5:4 ' +
-          'E5:2 Db5:2 C5:12',
-      },
-      B: {
-        bars: 8, chords: 'Fm Db C Abaug Fm Db Abaug C', pad: 'hold', padVel: 0.9,
-        bass: 'drive8 drive8 drive8 drive8b', drums: 'tablaC tabla2 tabla2 tabla2 tablaC tabla2 tabla2 tabFill',
-        stab: 'push', arp: 'arpB', arpLo: 60, arpVel: 0.55, timp: 'hit1 - hit1 - hit1 - hit1 roll2',
-        lead:
-          'C6:3 Db6:1 C6:2 Ab5:2 F5:4 G5:4 ' +
-          'Ab5:3 G5:1 F5:2 Db5:2 F5:8 ' +
-          'E5:2 F5:2 G5:4 B5:2 C6:2 E6:4 ' +
-          'E6:6 C6:2 Ab5:8 ' +
-          'C6:3 Db6:1 C6:2 Ab5:2 F5:4 Ab5:4 ' +
-          'Db6:3 C6:1 Ab5:2 F5:2 Db6:4 F6:4 ' +
-          'E6:2 F6:2 E6:2 C6:2 Ab5:2 G5:2 E5:4 ' +
+          'C6:6 D6:1 C6:1 Bb5:4 G5:4 ' +
+          'F5:4 G5:2 Bb5:2 C6:8 ' +
+          'D6:6 F6:1 D6:1 C6:4 Bb5:4 ' +
+          'G5:4 Bb5:2 G5:2 F5:8 ' +
+          'C6:6 D6:1 C6:1 F6:4 D6:4 ' +
+          'C6:4 Bb5:2 G5:2 Bb5:8 ' +
+          'D6:3 C6:1 Bb5:4 G5:2 F5:2 G5:4 ' +
           'C6:12 r:4',
       },
+      B: {
+        bars: 8, chords: 'Bbadd9 Csus4 Dm7 Dm7 Bbadd9 Csus4 Fsus2 Fsus2', pad: 'hold', padVel: 0.9,
+        bass: 'hook8', drums: 'lyBC lyB lyB lyB lyBC lyB lyB lyF',
+        arp: 'arpB', arpInst: 'zither', arpLo: 65, arpVel: 0.5, stab: '- - - push - - - push',
+        leadInst: 'erhu', harm: 'oct', leadVel: 1.0,
+        lead:
+          'F5:1 G5 Bb5 C6 D6:4 C6:2 Bb5:2 C6:4 ' +
+          'G5:2 Bb5:2 C6:2 D6:2 F6:4 D6:4 ' +
+          'F6:6 D6:1 C6:1 D6:4 C6:2 Bb5:2 ' +
+          'C6:2 Bb5:2 D6:12 ' +
+          'F5:1 G5 Bb5 C6 D6:4 F6:2 D6:2 C6:4 ' +
+          'Bb5:2 C6:2 D6:2 F6:2 G6:4 F6:4 ' +
+          'D6:3 C6:1 Bb5:4 C6:2 D6:2 C6:4 ' +
+          'F6:12 r:4',
+      },
       A2: null, B2: null,
       C: {
-        bars: 8, chords: 'C Db C Db Fm Db C C', pad: 'hold', padVel: 0.8,
-        bass: 'droneP', drums: 'tablaC tabla2 tabla tabla2 tablaC tabla2 tabla tabFill',
-        arp: 'arp8', arpInst: 'zither', arpLo: 48, arpVel: 0.5,
-        leadInst: 'erhu', leadVel: 1.05,
+        bars: 8, chords: 'Gm7 Dm7 Bbadd9 Fsus2 Gm7 Dm7 Ebmaj7 Csus4', pad: 'hold', padVel: 0.85, choir: 0.5,
+        bass: 'half', drums: 'lyHalfC lyHalf lyHalf lyHalf lyHalfC lyHalf lyHalf lyF',
+        arp: 'glow', arpInst: 'bell', arpLo: 70, arpVel: 0.45, timp: '- - - - - - - roll2',
+        leadInst: 'zither', leadVel: 1.25,
         lead:
-          'C5:1 Db5 E5 F5 G5 F5 E5 Db5 C5:2 E5:2 G5:4 ' +
-          'Ab5:1 G5 F5 E5 F5 G5 Ab5 G5 F5:4 Db5:4 ' +
-          'E5:1 F5 G5 Ab5 B5 C6 B5 Ab5 G5:4 E5:4 ' +
-          'F5:1 E5 Db5 C5 Db5 E5 F5 G5 Ab5:8 ' +
-          'C6:2 B5:1 C6:1 Ab5:2 G5:1 Ab5:1 F5:2 E5:1 F5:1 Db5:2 C5:2 ' +
-          'Db5:4 F5:4 Ab5:4 Db6:4 ' +
-          'C6:2 B5:1 Ab5:1 G5:1 r:1 C6:2 B5:1 Ab5:1 G5:1 r:1 C6:2 B5:1 Ab5:1 ' +
-          'G5:2 r:2 E5:2 Db5:2 C5:8',
+          'G5:4 Bb5:2 C6:2 D6:8^ ' +
+          'C6:4 Bb5:2 G5:2 F5:8 ' +
+          'Bb5:4 C6:2 D6:2 F6:8 ' +
+          'D6:4 C6:2 Bb5:2 C6:8 ' +
+          'G5:4 Bb5:2 C6:2 D6:6 F6:2 ' +
+          'G6:4 F6:2 D6:2 C6:8 ' +
+          'Bb5:4 G5:2 F5:2 G5:4 Bb5:4 ' +
+          'C6:16',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // STAGE 8 — BEIJING "Forbidden Winter". D gong-mode pentatonic
-  // (D E F# A B), 146 BPM. Soaring erhu, guzheng glissandi, big drums,
-  // timpani, dizi-like soft lead in the bridge. Intro(4) -> A B A2 B2 C.
-  stage8: {
-    bpm: 146, scale: [2, 4, 6, 9, 11], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
-    mix: { lead: 1.15, arp: 0.8, brass: 0.85, bass: 0.85, timp: 1.1 },
+  // STAGE 5 — TRẦN / BẠCH ĐẰNG 1288 "Cọc gỗ, nước triều". D minor, 150 BPM.
+  // Heroic battle march: war drums, brass melody, an F-major chorus with
+  // choir, and a "tide" bridge where rowing (3+3+2) bass and đàn nhị rise
+  // over a long brass counter.  Intro(4) -> A B A2 B2 C.  ≈ 64 s loop.
+  stage5: {
+    bpm: 150, scale: SC.Dmin, intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
+    mix: { lead: 1.1, brass: 0.95, pad: 0.95, bass: 0.9, timp: 1.0, drums: 1.05 },
     sections: {
       I: {
-        bars: 4, chords: 'D D G,A D', pad: 'swell', padVel: 0.9, bass: 'long',
-        drums: 'bjC bjBig bjBig bjFill', timp: 'roll2 hit1 hit1 roll',
-        counterInst: 'zither', counterVel: 0.9,
-        counter:
-          'D5:1 E5 F#5 A5 B5 D6 E6 F#6 A6:8 ' +
-          'r:16 ' +
-          'A6:1 F#6 E6 D6 B5 A5 F#5 E5 D5:8 ' +
-          'r:16',
+        bars: 4, chords: 'Dm Dm C A', pad: 'swell', padVel: 0.8, bass: 'long',
+        drums: 'bdIn bdIn bdIn2 bdIn2', timp: 'roll2 roll2 roll2 roll',
+        lead:
+          'r:8 A4:3 A4:1 D5:4 ' +
+          'F5:6 E5:2 D5:8 ' +
+          'r:8 G4:3 G4:1 C5:4 ' +
+          'E5:6 D5:2 C#5:8',
       },
       A: {
-        bars: 8, chords: 'D Bm Em A D Bm G,A D', pad: 'hold', padVel: 0.6,
-        bass: 'drive8 drive8 drive8 drive8b', drums: 'bjC bj bj bjBig bj bj bj bjFill',
-        arp: 'arp8', arpInst: 'zither', arpLo: 62, arpVel: 0.6, timp: 'hit1 - - - hit1 - - roll2',
-        leadInst: 'erhu', leadVel: 1.05,
+        bars: 8, chords: 'Dm Bb C Dm Dm Bb Gm A', pad: 'hold', padVel: 0.65,
+        bass: 'march', drums: 'bdMarchC bdMarch bdMarch bdMarch2 bdMarch bdMarch bdMarch2 bdF',
+        stab: 'syncA', timp: 'march', leadVel: 1.0,
         lead:
-          'A4:3 B4:1 D5:4 E5:2 F#5:2 E5:4 ' +
-          'D5:2 B4:2 A4:2 B4:2 F#4:8 ' +
-          'E5:3 F#5:1 E5:2 B4:2 D5:2 E5:2 B5:4~ ' +
-          'A5:12 r:2 A4:1 B4:1 ' +
-          'D5:3 E5:1 F#5:4 A5:2 B5:2 A5:4 ' +
-          'F#5:2 E5:2 D5:2 E5:2 B4:8 ' +
-          'D5:2 E5:2 B4:4 A4:2 B4:2 E5:4 ' +
-          'D5:12~ r:4',
+          'D5:3 F5:1 A5:4 G5:2 F5:2 D5:4 ' +
+          'F5:3 G5:1 A5:4 C6:4 Bb5:4 ' +
+          'C6:3 A5:1 G5:4 E5:2 G5:2 C6:4 ' +
+          'A5:12 r:2 A4:2 ' +
+          'D5:3 F5:1 A5:4 D6:4 C6:4 ' +
+          'D6:3 C6:1 A5:4 F5:4 D5:4 ' +
+          'G5:4 Bb5:4 D6:4 C6:2 Bb5:2 ' +
+          'A5:4 C#6:4 E6:8',
       },
       B: {
-        bars: 8, chords: 'G A F#m Bm Em A D D', pad: 'hold', padVel: 1,
-        bass: 'hook8', drums: 'bjBigC bjBig bjBig bjBig bjBigC bjBig bjBig bjFill',
-        timp: 'march march march march march march march roll', arp: 'arpB', arpLo: 62, arpVel: 0.55,
-        stab: 'push',
+        bars: 8, chords: 'F C Dm Bb F C Bb A', pad: 'hold', padVel: 0.95, choir: 0.45,
+        bass: 'drive8', drums: 'bdBigC bdBig bdBig bdBig bdBigC bdBig bdBig bdF',
+        stab: 'hits4 hits4 hits4 push', timp: 'march march march roll2', harm: 'dia3', leadVel: 0.9,
         lead:
-          'B5:2 A5:2 B5:2 D6:6 B5:2 A5:2 ' +
-          'E5:6 F#5:2 A5:8 ' +
-          'F#5:2 E5:2 F#5:2 A5:6 F#5:2 E5:2 ' +
-          'D5:6 E5:2 B4:8 ' +
-          'B5:2 A5:2 B5:2 D6:6 E6:2 D6:2 ' +
-          'E6:6 D6:2 B5:4 A5:4 ' +
-          'F#5:4 A5:4 D6:4 E6:4 ' +
-          'F#6:12 r:4',
+          'A5:4 C6:4 F6:6 E6:2 ' +
+          'E6:4 D6:2 C6:2 G5:8 ' +
+          'A5:4 C6:4 D6:4 F6:4 ' +
+          'F6:6 E6:2 D6:8 ' +
+          'C6:4 F6:4 A6:6 G6:2 ' +
+          'G6:4 E6:2 C6:2 G6:8 ' +
+          'F6:4 D6:2 Bb5:2 D6:4 F6:4 ' +
+          'E6:8 C#6:8',
       },
       A2: null, B2: null,
       C: {
-        bars: 8, chords: 'Bm G D A Bm G Em A', pad: 'hold', padVel: 0.9,
-        bass: 'half', drums: 'halfC half half half halfC half build build',
-        arp: 'sweep', arpInst: 'zither', arpLo: 59, arpVel: 0.45, timp: 'hit1 - - - hit1 - - roll2',
-        leadInst: 'soft', leadVel: 1.15,
+        bars: 8, chords: 'Gm Dm Gm A Bb F Gm A', pad: 'hold', padVel: 0.85,
+        bass: 'tres', drums: 'bdTideC bdTide bdTide bdTide bdTide bdTide bdF bdF',
+        arp: 'row', arpInst: 'zither', arpLo: 57, arpVel: 0.55, timp: 'hit1 - hit1 roll2 hit1 - roll2 roll',
+        leadInst: 'erhu', leadVel: 1.05, counterInst: 'lead', counterVel: 0.4,
         lead:
-          'F#5:6 E5:1 F#5:1 D5:4 B4:4 ' +
-          'D5:6 E5:2 B4:8 ' +
-          'A4:3 B4:1 D5:4 F#5:8 ' +
-          'E5:12 r:4 ' +
-          'B5:6 A5:1 B5:1 F#5:4 D5:4 ' +
-          'E5:4 D5:2 E5:2 B5:8 ' +
-          'A5:4 F#5:2 E5:2 D5:4 B4:4 ' +
-          'E5:8 A5:8',
+          'G5:6 Bb5:2 D6:8 ' +
+          'C6:4 A5:2 F5:2 D5:8^ ' +
+          'G5:6 A5:2 Bb5:4 D6:4 ' +
+          'C#6:12 r:4 ' +
+          'D6:6 F6:2 Bb5:8 ' +
+          'C6:4 A5:2 C6:2 F6:8 ' +
+          'D6:4 Bb5:4 G5:4 Bb5:4 ' +
+          'A5:16',
+        counter: 'D5:16 F5:16 D5:16 E5:16 F5:16 A5:16 Bb5:16 C#6:16',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // STAGE 9 — SEOUL "Han River Neon". E minor pentatonic (gyemyeonjo-like
-  // E G A B D), 158 BPM. K-pop / electro drive: staccato synth verse, octave
-  // supersaw chorus, haegeum-like erhu counter, daegeum-like soft bridge over
-  // a janggu 3-feel. Intro(4) -> A B A2 B2 C B2.  ≈ 73 s loop.
-  stage9: {
-    bpm: 158, scale: [4, 7, 9, 11, 2], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C', 'B2'],
-    mix: { lead: 1.15, arp: 0.9, brass: 0.8, bass: 1.0 },
+  // STAGE 6 — HỒ / TÂY ĐÔ "Thành đá trong mưa". C minor with điệu Nam bends
+  // (nhấn / rơi on the nhị), 128 BPM. Stern and heavy: low strings, stone
+  // knocks, war drums, đàn đá (lithophone) ostinati, a Neapolitan Db, and a
+  // rain-dirge bridge where the stones carry the tune.
+  // Intro(4) -> A B A2 B2 C.  ≈ 75 s loop.
+  stage6: {
+    bpm: 128, scale: [0, 2, 3, 5, 7, 8, 10], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
+    mix: { lead: 1.1, pad: 1.05, arp: 0.9, bass: 1.0, drums: 1.05 },
     sections: {
       I: {
-        bars: 4, chords: 'Em C D Bm', pad: 'swell', padVel: 0.7, bass: '- - kpopB kpopB',
-        drums: 'edmBrk edmBrk kpop kpopRoll', arp: 'neon', arpLo: 64, arpVel: 0.75,
+        bars: 4, chords: 'Cm Cm Ab G', pad: 'swell', padVel: 0.9, padLo: 43, padHi: 67,
+        bass: 'long', drums: 'tdIn tdIn tdIn tdInF', counterInst: 'da', counterVel: 1,
+        counter:
+          'C5:2 Eb5:2 F5:2 G5:2 Bb5:4 G5:4 ' +
+          'F5:2 Eb5:2 C5:4 r:8 ' +
+          'C5:2 Eb5:2 F5:2 G5:2 C6:4 Bb5:4 ' +
+          'G5:12 r:4',
       },
       A: {
-        bars: 8, chords: 'Em C G D Em C D D', pad: 'hold', padVel: 0.55,
-        bass: 'kpopB', drums: 'kpopC kpop kpop kpop kpop kpop kpop kpopRoll',
-        arp: 'neon2', arpLo: 64, arpVel: 0.55, leadInst: 'pluck', leadVel: 1.35,
+        bars: 8, chords: 'Cm Cm Ab Bb Cm Fm Ab G', pad: 'hold', padVel: 0.8, padLo: 43, padHi: 67,
+        bass: 'drive8', drums: 'tdAC tdA tdA tdA2 tdA tdA tdA2 tdF',
+        arp: 'ost', arpInst: 'da', arpLo: 60, arpVel: 0.6,
+        leadInst: 'erhu', leadVel: 1.05,
         lead:
-          'E5:2 E5:1 G5:1 r:2 A5:2 B5:2 A5:2 G5:2 E5:2 ' +
-          'G5:2 A5:2 r:2 E5:2 r:2 D5:2 E5:4 ' +
-          'D5:2 D5:1 E5:1 r:2 G5:2 A5:2 G5:2 E5:2 D5:2 ' +
-          'E5:2 D5:2 B4:4 A4:8 ' +
-          'E5:2 E5:1 G5:1 r:2 A5:2 B5:2 D6:2 B5:2 A5:2 ' +
-          'B5:2 A5:2 r:2 G5:2 r:2 E5:2 G5:4 ' +
-          'A5:2 B5:2 D6:2 E6:2 D6:2 B5:2 A5:2 G5:2 ' +
+          'G4:4 C5:4 Eb5:6 F5:2 ' +
+          'Eb5:4 C5:2 Bb4:2 C5:8_ ' +
+          'Ab4:4 C5:4 Eb5:4 F5:4 ' +
+          'F5:6 Eb5:2 D5:8 ' +
+          'G5:4 F5:2 Eb5:2 C5:4 G4:4 ' +
+          'Ab4:4 C5:2 Eb5:2 F5:8^ ' +
+          'Eb5:3 F5:1 Eb5:4 C5:4 Eb5:4 ' +
+          'D5:4 B4:4 G4:8',
+      },
+      B: {
+        bars: 8, chords: 'Fm Cm Ab Eb Fm Cm Db G', pad: 'hold', padVel: 1, padLo: 43, padHi: 67,
+        choir: 0.45, choirLo: 50, choirHi: 70,
+        bass: 'hook8', drums: 'tdBC tdB tdB tdB tdBC tdB tdB tdF',
+        stab: 'hits4 hits4 hits4 push', timp: 'march march march roll2',
+        harm: 'oct', leadVel: 0.95,
+        lead:
+          'F5:4 Ab5:4 C6:6 Bb5:2 ' +
+          'G5:4 Eb5:4 C5:8 ' +
+          'Eb5:4 F5:2 G5:2 Ab5:6 G5:2 ' +
+          'G5:4 F5:2 Eb5:2 Bb4:8 ' +
+          'F5:4 Ab5:4 C6:4 Eb6:4 ' +
+          'D6:4 C6:2 Bb5:2 G5:8 ' +
+          'F5:4 Ab5:4 Db6:8 ' +
+          'B5:8 D6:4 G5:4',
+      },
+      A2: null, B2: null,
+      C: {
+        bars: 8, chords: 'Ab Eb Fm Cm Ab Eb Db G', pad: 'hold', padVel: 0.85, padLo: 43, padHi: 67,
+        bass: 'half', drums: 'tdCC tdC tdC tdC tdC tdC tdA tdF',
+        leadInst: 'da', leadVel: 1.1, counterInst: 'erhu', counterVel: 0.5,
+        lead:
+          'C6:2 Eb6:2 C6:2 Ab5:2 Eb5:8 ' +
+          'Bb5:2 G5:2 Eb5:2 G5:2 Bb5:8 ' +
+          'C6:2 Ab5:2 F5:2 Ab5:2 C6:8 ' +
+          'G5:2 Eb5:2 C5:2 Eb5:2 G5:8 ' +
+          'Eb6:2 C6:2 Ab5:2 C6:2 Eb6:8 ' +
+          'G6:2 Eb6:2 Bb5:2 G5:2 Eb5:8 ' +
+          'F5:2 Ab5:2 Db6:2 F6:2 Db6:8 ' +
+          'D6:4 B5:4 G5:8',
+        counter: 'C5:16 Bb4:16 Ab4:16 G4:16 C5:16 Bb4:16 Ab4:16 B4:16',
+      },
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // STAGE 7 — LÊ SƠ "Hồng Đức thịnh trị". G major pentatonic (G A B D E),
+  // 152 BPM. Bright court festival: đàn nguyệt riffs and arpeggios, phách
+  // clicks, sáo verse, brass chorus, a lighter court-dance bridge.
+  // Intro(4) -> A B A2 B2 C.  ≈ 63 s loop.
+  stage7: {
+    bpm: 152, scale: [7, 9, 11, 2, 4], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
+    mix: { lead: 1.1, arp: 0.9, brass: 0.85, bass: 0.85 },
+    sections: {
+      I: {
+        bars: 4, chords: 'G G C D', bass: 'pulse', drums: 'lsIn lsIn lsIn lsInF',
+        leadInst: 'nguyet', leadVel: 1.05,
+        lead:
+          'G4:2 B4:2 D5:2 E5:2 D5:2 B4:2 A4:4 ' +
+          'G4:2 A4:2 B4:2 D5:2 E5:4 D5:4 ' +
+          'E5:2 G5:2 E5:2 D5:2 B4:2 A4:2 G4:4 ' +
+          'A4:2 B4:2 D5:2 E5:2 D5:8',
+      },
+      A: {
+        bars: 8, chords: 'G Em C D G Em Am7 D', pad: 'hold', padVel: 0.55,
+        bass: 'drive8', drums: 'lsAC lsA lsA lsA2 lsA lsA lsA2 lsF',
+        arp: 'arp8', arpInst: 'nguyet', arpLo: 55, arpVel: 0.6, stab: 'syncA',
+        leadInst: 'sao', leadVel: 1.05,
+        lead:
+          'D5:2 E5:2 G5:4 A5:2 G5:2 E5:4 ' +
+          'D5:3 E5:1 D5:2 B4:2 D5:8 ' +
+          'E5:2 G5:2 A5:4 B5:2 A5:2 G5:4 ' +
+          'A5:6 B5:1 A5:1 D5:8* ' +
+          'D5:2 E5:2 G5:4 B5:2 D6:2 B5:4 ' +
+          'A5:3 B5:1 A5:2 G5:2 E5:8 ' +
+          'A5:2 B5:2 A5:2 G5:2 E5:4 G5:4 ' +
           'A5:12 r:4',
       },
       B: {
-        bars: 8, chords: 'C D Bm Em C D Em Em', pad: 'hold', padVel: 0.9,
-        bass: 'oct8', drums: 'edmC edm16 edm16 edm16 edmC edm16 edm16 kpopRoll',
-        arp: 'neon', arpLo: 64, arpVel: 0.6, stab: 'offb', harm: 'oct',
+        bars: 8, chords: 'C D Bm Em C D G G', pad: 'hold', padVel: 0.9,
+        bass: 'hook8', drums: 'lsBC lsB lsB lsB lsBC lsB lsB lsF',
+        arp: 'arpB', arpInst: 'nguyet', arpLo: 60, arpVel: 0.5, stab: 'hits4 hits4 hits4 push', harm: 'dia3',
+        counterInst: 'sao', counterVel: 0.45,
         lead:
-          'E5:2 G5:2 A5:2 B5:6 A5:2 G5:2 ' +
-          'A5:6 D6:2 B5:4 A5:4 ' +
-          'B5:2 D6:2 E6:2 D6:6 B5:2 A5:2 ' +
-          'G5:2 A5:2 E5:12 ' +
-          'E5:2 G5:2 A5:2 B5:6 A5:2 G5:2 ' +
-          'A5:6 D6:2 E6:4 D6:4 ' +
-          'E6:3 D6:1 B5:2 A5:2 B5:2 D6:2 E6:4 ' +
-          'E6:12 r:4',
+          'E5:4 G5:4 E6:6 D6:2 ' +
+          'A5:4 B5:2 D6:2 A5:8 ' +
+          'B5:4 D6:4 F#6:4 D6:4 ' +
+          'E6:12 r:2 D6:2 ' +
+          'E6:4 G6:4 E6:4 D6:4 ' +
+          'D6:4 E6:2 D6:2 B5:4 A5:4 ' +
+          'G5:2 A5:2 B5:2 D6:2 E6:4 D6:4 ' +
+          'G6:12 r:4',
+        counter: 'G5:16 F#5:16 D5:16 E5:16 G5:16 A5:16 B5:16 D5:16',
       },
       A2: null, B2: null,
       C: {
-        bars: 8, chords: 'Am Em C D Am Em C,D Em', pad: 'hold', padVel: 0.9,
-        bass: 'half', drums: 'halfC kpopJ kpopJ kpopJ kpopJ kpopJ kpopJ kpopRoll',
-        arp: 'arp8', arpInst: 'zither', arpLo: 59, arpVel: 0.5,
-        leadInst: 'soft', leadVel: 1.15,
+        bars: 8, chords: 'Em Am7 D G Em Am7 C D', pad: 'hold', padVel: 0.7,
+        bass: 'tres', drums: 'lsCC lsC lsC lsC lsCC lsC lsC lsF',
+        arp: 'glow', arpInst: 'nguyet', arpLo: 59, arpVel: 0.55,
+        leadInst: 'sao', leadVel: 1.05, counterInst: 'erhu', counterVel: 0.4,
         lead:
-          'A5:6 B5:1 A5:1 E5:4 G5:4 ' +
-          'E5:6 D5:1 E5:1 B4:8 ' +
-          'G5:3 A5:1 G5:4 E5:4 D5:4 ' +
-          'E5:4 D5:2 B4:2 A4:8 ' +
-          'A5:4 B5:2 D6:2 E6:8 ' +
-          'D6:3 E6:1 D6:2 B5:2 A5:4 G5:4 ' +
-          'E5:4 G5:4 A5:4 D6:4 ' +
-          'B5:12 r:4',
+          'B5:4 G5:2 E5:2 B5:4 D6:4 ' +
+          'E6:4 D6:2 B5:2 A5:8 ' +
+          'A5:4 B5:2 A5:2 D6:4 A5:4 ' +
+          'B5:4 A5:2 E5:2 G5:8 ' +
+          'E5:2 G5:2 B5:2 D6:2 E6:4 D6:4 ' +
+          'B5:4 A5:2 G5:2 E5:8 ' +
+          'G5:2 A5:2 G5:2 E5:2 D5:4 E5:4 ' +
+          'D5:16',
+        counter: 'E5:16 C5:16 F#5:16 D5:16 B4:16 C5:16 E5:16 F#5:16',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // STAGE 10 — TOKYO "Neo-Edo Ascension" (FINAL). Miyako-bushi in-scale on E
-  // (E F A B C), 164 BPM. Koto runs, shakuhachi-like counter, double-kick
-  // rock, taiko breakdown, then a climax that lifts a semitone (F in-scale)
-  // with octave brass, soaring erhu and blast beats.
-  // Intro(4) -> A B A2 B2 C D.  ≈ 70 s loop.
-  stage10: {
-    bpm: 164, scale: [4, 5, 9, 11, 0], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C', 'D'],
-    mix: { lead: 1.15, arp: 0.8, brass: 0.9, bass: 0.95, timp: 1.1 },
+  // STAGE 8 — PHỐ HIẾN & HỘI AN "Đèn lồng bến cảng". A điệu Nam colour
+  // (A C D E G with nhấn / rơi bends), 104 BPM, lilting 3+3+2. Đàn bầu solo
+  // (portamento, whammy vibrato, bends), warm merchant harmony with a
+  // Western ii–V and a leading-tone E7, and a koto-tinted bridge (A in-scale
+  // A Bb D E F) under a small chiêng.  Intro(4) -> A B C A2.  ≈ 74 s loop.
+  stage8: {
+    bpm: 104, scale: [9, 0, 2, 4, 7], intro: ['I'], loop: ['A', 'B', 'C', 'A2'],
+    mix: { lead: 1.2, arp: 0.8, pad: 0.9, bass: 0.85, drums: 0.95 },
     sections: {
       I: {
-        bars: 4, chords: 'Am Am F E', pad: 'swell', padVel: 0.8, bass: 'long long gallop gallop',
-        drums: 'tkTaikoC tkTaiko tkTaiko tkFill', timp: 'hit1 - hit1 roll2',
-        counterInst: 'zither', counterVel: 0.95,
-        counter:
-          'E5:1 F5 A5 B5 C6 B5 A5 F5 E5:4 r:4 ' +
-          'A5:1 B5 C6 E6 F6 E6 C6 B5 A5:4 r:4 ' +
-          'F5:1 A5 B5 C6 E6 F6 A6 B6 A6:4 F6:4 ' +
-          'E6:2 C6:2 B5:2 A5:2 F5:2 E5:6',
+        bars: 4, chords: 'Am Am Fmaj7 E7sus4', pad: 'swell', padVel: 0.7,
+        bass: 'long', drums: 'phIn phIn phIn phIn', arp: 'glow', arpInst: 'bell', arpLo: 69, arpVel: 0.5,
+        leadInst: 'bau', leadVel: 1.05,
+        lead:
+          'r:4 E5:4 A5:8^ ' +
+          'G5:4 E5:2 D5:2 E5:8 ' +
+          'r:4 C5:2 D5:2 E5:4 G5:4 ' +
+          'E5:12_ r:4',
       },
       A: {
-        bars: 8, chords: 'Am F E Am Dm F E E', pad: 'hold', padVel: 0.6,
-        bass: 'gallop', drums: 'tkDriveC tkDrive tkDrive tkDrive tkDrive tkDrive tkDrive fillA',
-        arp: 'arp8', arpLo: 64, arpVel: 0.55, stab: 'syncA',
-        leadInst: 'zither', leadVel: 1.3, counterInst: 'soft', counterVel: 0.45,
+        bars: 8, chords: 'Am Em F G Am Em Dm7 E7', pad: 'hold', padVel: 0.6,
+        bass: 'lilt', drums: 'phAC phA phA phA2 phA phA phA2 phF',
+        arp: 'arp8', arpInst: 'nguyet', arpLo: 57, arpVel: 0.5,
+        leadInst: 'bau', leadVel: 1.1,
         lead:
-          'E5:2 A5:2 B5:2 C6:4 B5:2 A5:4 ' +
-          'F5:2 A5:2 C6:4 B5:1 C6:1 B5:2 A5:4 ' +
-          'B5:6 C6:1 B5:1 F5:4 E5:4 ' +
-          'A5:2 C6:2 B5:2 A5:2 E5:8 ' +
-          'F5:2 A5:2 C6:2 E6:4 F6:2 E6:4 ' +
-          'C6:2 A5:2 F5:4 A5:2 C6:2 F6:4 ' +
-          'E6:3 F6:1 E6:2 C6:2 B5:4 F5:4 ' +
-          'E5:12 r:4',
-        counter: 'A4:16 C5:16 B4:16 C5:16 A4:16 C5:16 B4:16 G#4:16',
+          'A4:3 C5:1 D5:4 E5:6^ D5:2 ' +
+          'E5:4 G5:2 E5:2 D5:4 C5:4 ' +
+          'A4:4 C5:2 D5:2 E5:4~ G5:4 ' +
+          'D5:12_ r:4 ' +
+          'A5:3 G5:1 E5:4 D5:2 E5:2 G5:4 ' +
+          'E5:4 D5:2 C5:2 A4:8^ ' +
+          'C5:3 D5:1 E5:4 G5:4~ A5:4 ' +
+          'G#5:8 E5:8_',
       },
       B: {
-        bars: 8, chords: 'F E Am Am F E F E', pad: 'hold', padVel: 1,
-        bass: 'drive8 drive8 drive8 drive8b', drums: 'hookC hook hook tkDrive hookC hook hook fillT',
-        arp: 'arpB', arpLo: 64, arpVel: 0.55, stab: 'push', timp: '- - - - - - - roll2',
+        bars: 8, chords: 'Fmaj7 G Em7 Am Dm7 G7 Cmaj7 E7', pad: 'hold', padVel: 0.85,
+        bass: 'walk', drums: 'phBC phB phB phB phBC phB phB phF',
+        arp: 'arpB', arpInst: 'nguyet', arpLo: 57, arpVel: 0.45,
+        leadInst: 'sao', leadVel: 1.0, counterInst: 'bau', counterVel: 0.55,
         lead:
-          'A5:2 C6:2 F6:4 E6:2 C6:2 A5:4 ' +
-          'B5:6 C6:2 B5:4 F5:4 ' +
-          'A5:2 B5:2 C6:2 E6:6 C6:2 B5:2 ' +
-          'A5:12 E5:4 ' +
-          'F5:2 A5:2 C6:4 B5:2 C6:2 E6:4 ' +
-          'F6:6 E6:1 F6:1 E6:4 B5:4 ' +
-          'A5:2 C6:2 F6:2 E6:2 C6:2 A5:2 F5:4 ' +
-          'E6:12 r:4',
+          'A5:4 C6:4 E6:6 D6:2 ' +
+          'D6:4 B5:2 G5:2 D6:8 ' +
+          'E6:4 D6:2 B5:2 G5:4 E5:4 ' +
+          'A5:12 r:4 ' +
+          'F5:4 A5:4 C6:6 D6:2 ' +
+          'B5:4 D6:2 F6:2 D6:8 ' +
+          'E6:4 D6:2 C6:2 G5:4 B5:4 ' +
+          'B5:8 G#5:8',
+        counter: 'C5:16 B4:16 G4:16 C5:16 A4:16 B4:16 G4:16 G#4:16',
       },
-      A2: null, B2: null, D: null,
       C: {
-        bars: 8, chords: 'Am Am F F Dm Dm E E', pad: 'hold', padVel: 0.9,
-        bass: 'half', drums: 'tkTaikoC tkTaiko tkTaiko tkTaiko tkTaikoC tkTaiko tkTaiko tkFill',
-        arp: 'sweep', arpInst: 'zither', arpLo: 57, arpVel: 0.5, timp: 'hit1 - hit1 - hit1 - hit1 roll2',
-        leadInst: 'erhu', leadVel: 1.1,
+        bars: 8, chords: 'Am Bbmaj7 Dm Am Am Bbmaj7 Dm E7', pad: 'hold', padVel: 0.7,
+        bass: 'tres', drums: 'phCC phC phC phC phC phC phC phF',
+        arp: 'glow', arpInst: 'bell', arpLo: 69, arpVel: 0.4,
+        leadInst: 'zither', leadVel: 1.25, counterInst: 'bau', counterVel: 0.6,
         lead:
-          'E5:6 F5:2 A5:8 ' +
-          'B5:4 C6:2 B5:2 A5:8 ' +
-          'C6:6 B5:1 C6:1 A5:4 F5:4 ' +
-          'E5:12~ r:4 ' +
-          'F5:6 A5:2 C6:8 ' +
-          'E6:4 C6:2 A5:2 F5:8 ' +
-          'E5:3 F5:1 A5:4 B5:4 C6:4 ' +
-          'B5:12~ r:4',
+          'A5:2 Bb5:2 D6:4 E6:4 D6:4 ' +
+          'Bb5:4 A5:2 F5:2 E5:8 ' +
+          'D5:2 E5:2 F5:4 A5:4 Bb5:4 ' +
+          'A5:12 r:4 ' +
+          'E6:2 F6:2 E6:2 D6:2 Bb5:4 A5:4 ' +
+          'Bb5:4 D6:2 Bb5:2 A5:8 ' +
+          'F5:2 E5:2 D5:2 F5:2 A5:4 D6:4 ' +
+          'B5:8 G#5:8',
+        counter: 'E5:16 D5:16 F5:16 E5:16^ C5:16 D5:16 A4:16 B4:16',
+      },
+      A2: null, // filled below
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // STAGE 9 — TÂY SƠN "Thần tốc mùa xuân Kỷ Dậu". G minor, 172 BPM. Fast and
+  // fierce: trống trận ensemble (big/medium/small war drums, toms, bronze),
+  // twang volleys, đàn nhị verse, a triumphant Bb-major brass chorus, a
+  // lightning 16th-note bridge and an 8-bar drum-ensemble break.
+  // Intro(4) -> A B A2 B2 C T.  ≈ 67 s loop.
+  stage9: {
+    bpm: 172, scale: [7, 9, 10, 0, 2, 3, 5], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C', 'T'],
+    mix: { lead: 1.1, brass: 0.95, bass: 0.9, drums: 1.1, timp: 1.05 },
+    sections: {
+      I: {
+        bars: 4, chords: 'Gm Gm Gm D7', pad: 'swell', padVel: 0.8, bass: 'ost16',
+        drums: 'tsIn tsIn tsIn2 tsIn2', timp: 'hit1 hit1 roll2 roll',
+        counterInst: 'lead', counterVel: 0.8,
+        counter: 'r:16 r:16 G4:2 G4:2 Bb4:2 C5:2 D5:8 F5:2 F5:2 D5:2 C5:2 D5:4 A4:4',
+      },
+      A: {
+        bars: 8, chords: 'Gm F Eb D Gm F Eb,F D', pad: 'hold', padVel: 0.65,
+        bass: 'gallop', drums: 'tsAC tsA tsA tsA2 tsA tsA tsA2 tsF',
+        arp: 'cross2', arpInst: 'twang', arpLo: 55, arpVel: 0.6, stab: 'syncB',
+        leadInst: 'erhu', leadVel: 1.05,
+        lead:
+          'G5:2 Bb5:2 C6:2 D6:2 C6:2 Bb5:2 G5:4 ' +
+          'F5:2 G5:2 Bb5:2 C6:2 A5:8 ' +
+          'G5:2 Bb5:2 C6:2 D6:2 Eb6:4 D6:4 ' +
+          'D6:4 C6:2 A5:2 F#5:8 ' +
+          'G5:2 Bb5:2 D6:2 G6:2 F6:2 D6:2 C6:4 ' +
+          'D6:2 C6:2 Bb5:2 G5:2 F5:4 A5:4 ' +
+          'Bb5:4 G5:4 C6:4 A5:4 ' +
+          'D6:12 r:4',
+      },
+      B: {
+        bars: 8, chords: 'Bb F Gm Eb Bb F Eb F', pad: 'hold', padVel: 0.95, choir: 0.5,
+        bass: 'drive8', drums: 'tsBC tsB tsB tsB tsBC tsB tsB tsF',
+        stab: 'hits4 hits4 hits4 push', timp: 'march march march roll2', harm: 'dia3', leadVel: 1.0,
+        lead:
+          'D5:4 F5:4 Bb5:6 A5:2 ' +
+          'C6:4 A5:2 F5:2 C6:8 ' +
+          'Bb5:4 D6:4 G6:6 F6:2 ' +
+          'Eb6:4 D6:2 C6:2 Bb5:8 ' +
+          'F6:4 D6:4 Bb5:6 C6:2 ' +
+          'C6:4 A5:2 C6:2 F6:8 ' +
+          'G6:4 F6:2 Eb6:2 D6:4 C6:4 ' +
+          'D6:4 Eb6:4 F6:8',
+      },
+      A2: null, B2: null,
+      C: {
+        bars: 8, chords: 'Cm Gm Cm D Cm Gm Eb D', pad: 'hold', padVel: 0.8,
+        bass: 'ost16', drums: 'tsDr1C tsDr1 tsDr1 tsF tsDr1 tsDr1 tsDr2 tsF',
+        arp: 'up16', arpInst: 'twang', arpLo: 55, arpVel: 0.45, timp: 'hit1 - hit1 roll2',
+        leadInst: 'erhu', leadVel: 1.05, harm: 'oct',
+        lead:
+          'C6:1 D6 Eb6 D6 C6 Bb5 G5 Bb5 C6:4 G5:4 ' +
+          'D6:1 Bb5 G5 Bb5 D6 F6 D6 Bb5 G5:8 ' +
+          'Eb6:1 D6 C6 Bb5 C6 Eb6 G6 Eb6 C6:4 G5:4 ' +
+          'F#5:4 A5:4 D6:8 ' +
+          'C6:1 D6 Eb6 G6 F6 Eb6 D6 C6 Eb6:4 C6:4 ' +
+          'Bb5:1 C6 D6 F6 G6 F6 D6 Bb5 G5:4 Bb5:4 ' +
+          'Eb6:2 D6:2 C6:2 Bb5:2 G5:4 Bb5:4 ' +
+          'A5:4 D6:4 F#6:8',
+      },
+      T: {
+        bars: 8, chords: 'Gm Gm Gm Gm Eb F D D', pad: 'hold', padVel: 0.7,
+        bass: 'gallop', drums: 'tsDr1C tsDr2 tsDr3 tsDr2 tsDr3 tsDr3 tsDr3 tsDrF',
+        stab: '- - - - hits4 hits4 hits4 push', timp: 'hit1 hit1 hit1 roll2 march march roll2 roll',
+        lead: 'r:64 Eb5:16 F5:16 F#5:16 A5:16',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // BOSS — "Leviathan Engine". A minor with phrygian Bb, 168 BPM.
-  // Intro(2, once) -> A(8) -> B(8) -> A2(8) -> T(4 turnaround) -> back to A.
-  boss: {
-    bpm: 168, scale: [9, 11, 0, 2, 4, 5, 7], intro: ['I'], loop: ['A', 'B', 'A2', 'T'],
-    mix: { lead: 1.15, bass: 0.9, brass: 0.9, pad: 0.8 },
+  // STAGE 10 — NGUYỄN / HUẾ "Hoàng thành lúc hoàng hôn" (FINAL). D with điệu
+  // Nam colour (D F G A C, bends) for sunset, 96 BPM kèn bầu prelude, then a
+  // 140 BPM processional: court drums, phách, đàn nhị, kèn bầu chorus with
+  // choir, a night bridge under the temple bell, and a climax that turns to D
+  // major (Bắc) with brass, choir and kèn counter-line.
+  // Intro(4 @96) -> A B A2 C D.  ≈ 69 s loop.
+  stage10: {
+    bpm: 140, scale: SC.Dmin, intro: ['I'], loop: ['A', 'B', 'A2', 'C', 'D'],
+    mix: { lead: 1.1, pad: 1.0, brass: 0.9, bass: 0.9, timp: 1.0 },
     sections: {
-      I: { bars: 2, chords: 'Am Bb,E', bass: 'ost16', drums: 'bIntro bFill2', stab: 'boss2 boss1', timp: 'hit1 roll2' },
-      A: {
-        bars: 8, chords: 'Am Am Bb Am Am Am F E7', pad: 'hold', padVel: 0.6,
-        bass: 'ost16', drums: 'bBeatC bBeat bBeat bFill bBeatC bBeat bBeat bFill',
-        stab: 'boss2', timp: 'boss - boss - boss - boss roll2',
+      I: {
+        bars: 4, bpm: 96, chords: 'Dm Dm Gm7 A7sus4', pad: 'swell', padVel: 0.8,
+        bass: 'long', drums: 'hueIn hueIn2 hueIn hueInF', leadInst: 'ken', leadVel: 1.0,
         lead:
-          'A4:6 C5:2 E5:8 ' +
-          'F5:4 E5:4 D#5:2 E5:6 ' +
-          'F5:6 D5:2 Bb4:8 ' +
-          'A4:4 B4:2 C5:2 E5:8 ' +
-          'A5:6 G5:2 E5:4 C5:4 ' +
-          'D5:4 E5:2 F5:2 E5:8 ' +
-          'F5:6 A5:2 C6:8 ' +
-          'B5:4 G#5:4 E5:4 D5:4',
+          'A4:4 D5:4 F5:6^ G5:2 ' +
+          'A5:6 G5:1 F5:1 D5:8_ ' +
+          'C5:4 D5:2 F5:2 G5:4 C6:4 ' +
+          'A5:12_ r:4',
+      },
+      A: {
+        bars: 8, chords: 'Dm C Bb A Dm F Gm7 A7sus4,A7', pad: 'hold', padVel: 0.65,
+        bass: 'march', drums: 'hueAC hueA hueA hueA2 hueA hueA hueA2 hueF',
+        arp: 'arp8', arpInst: 'zither', arpLo: 62, arpVel: 0.5, timp: 'hit1 - hit1 - hit1 - hit1 roll2',
+        leadInst: 'erhu', leadVel: 1.05,
+        lead:
+          'D5:3 F5:1 G5:4 A5:6 C6:2 ' +
+          'G5:4 F5:2 D5:2 E5:8 ' +
+          'D5:3 F5:1 G5:4 F5:4 D5:4 ' +
+          'C#5:4 E5:4 A5:8 ' +
+          'A5:3 C6:1 D6:4 C6:2 A5:2 G5:4 ' +
+          'A5:4 F5:2 G5:2 C6:8^ ' +
+          'Bb5:4 A5:2 G5:2 F5:4 D5:4 ' +
+          'E5:8 C#5:8',
       },
       B: {
-        bars: 8, chords: 'Dm Bb C Am Dm Bb E E7', pad: 'hold', padVel: 0.7,
-        bass: 'ost16b', drums: 'bBeatC bBeat bBeat bFill bBeatC bBeat bBeat bFill2',
-        stab: 'boss1', arp: 'ost', arpLo: 69, arpVel: 0.6,
+        bars: 8, chords: 'Bb C Am7 Dm Gm7 C F A7', pad: 'hold', padVel: 0.95, choir: 0.5,
+        bass: 'hook8', drums: 'hueBC hueB hueB hueB hueBC hueB hueB hueF',
+        arp: 'arpB', arpInst: 'zither', arpLo: 62, arpVel: 0.45, timp: 'march march march roll2',
+        stab: '- - - push - - - push', leadInst: 'ken', leadVel: 1.0, harm: 'oct',
         lead:
-          'D5:2 F5:2 A5:4 A5:2 G5:2 F5:2 E5:2 ' +
-          'F5:6 D5:2 Bb4:4 D5:4 ' +
-          'E5:2 G5:2 C6:4 C6:2 B5:2 A5:2 G5:2 ' +
-          'A5:12 E5:4 ' +
-          'D5:2 F5:2 A5:4 A5:2 G5:2 F5:2 E5:2 ' +
-          'F5:2 G5:2 Bb5:4 Bb5:2 A5:2 G5:2 F5:2 ' +
-          'E5:4 G#5:4 B5:8 ' +
-          'D6:4 C6:4 B5:4 G#5:4',
+          'D6:6 C6:1 Bb5:1 A5:4 F5:4 ' +
+          'G5:4 A5:2 C6:2 E6:8 ' +
+          'C6:6 A5:2 G5:4 E5:4 ' +
+          'F5:4 E5:2 D5:2 A5:8_ ' +
+          'Bb5:6 A5:1 G5:1 F5:4 D5:4 ' +
+          'E5:4 G5:2 C6:2 E6:8 ' +
+          'F6:4 E6:2 C6:2 A5:4 C6:4 ' +
+          'C#6:8 E6:8',
+      },
+      A2: null,
+      C: {
+        bars: 8, chords: 'Gm7 Dm Bb F Gm7 Dm Eb A7', pad: 'hold', padVel: 0.8, choir: 0.4,
+        bass: 'half', drums: 'hueNiteC hueNite2 hueNite hueNite2 hueNite hueNite2 hueNite hueF',
+        arp: 'glow', arpInst: 'zither', arpLo: 62, arpVel: 0.45,
+        leadInst: 'erhu', leadVel: 1.0, counterInst: 'sao', counterVel: 0.45,
+        lead:
+          'G5:6 Bb5:2 D6:8 ' +
+          'C6:4 A5:2 F5:2 D5:8^ ' +
+          'F5:6 G5:2 Bb5:8 ' +
+          'A5:4 G5:2 F5:2 C5:8 ' +
+          'G5:6 A5:2 Bb5:4 D6:4 ' +
+          'F6:4 D6:2 C6:2 A5:8_ ' +
+          'G5:4 Bb5:4 Eb6:8 ' +
+          'C#6:8 E6:8',
+        counter: 'D5:16 F5:16 F5:16 A4:16 Bb4:16 A4:16 G4:16 A4:16',
+      },
+      D: {
+        bars: 8, chords: 'G A F#m Bm G A Bm,A D', pad: 'hold', padVel: 1.05, choir: 0.7,
+        bass: 'drive8', drums: 'hueClimC hueClim hueClim hueClim hueClimC hueClim hueClim hueF',
+        arp: 'up16', arpInst: 'zither', arpLo: 64, arpVel: 0.4, timp: 'march march march roll2 march march march roll',
+        stab: 'hits4', harm: 'oct', leadVel: 1.0, counterInst: 'ken', counterVel: 0.45,
+        lead:
+          'B5:4 D6:4 G6:6 F#6:2 ' +
+          'E6:4 C#6:2 A5:2 E6:8 ' +
+          'F#6:4 E6:2 C#6:2 A5:8 ' +
+          'B5:4 C#6:2 D6:2 F#6:8 ' +
+          'G6:6 F#6:1 E6:1 D6:4 B5:4 ' +
+          'C#6:4 E6:2 A6:2 E6:8 ' +
+          'F#6:4 D6:2 B5:2 C#6:4 E6:4 ' +
+          'D6:16',
+        counter: 'D5:16 E5:16 C#5:16 D5:16 B4:16 C#5:16 D5:8 C#5:8 A4:16',
+      },
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // BOSS — "Cỗ máy Thời Ảnh". E phrygian against an F/E slash chord and a
+  // Bb tritone, 166 BPM: machine bass pistons, bronze drums struck like
+  // anvils, gong crashes, brass synth lead.
+  // Intro(2, once) -> A(8) -> B(8) -> A2(8) -> T(4) -> back to A.  ≈ 40 s loop.
+  boss: {
+    bpm: 166, scale: [4, 5, 7, 9, 11, 0, 2], intro: ['I'], loop: ['A', 'B', 'A2', 'T'],
+    mix: { lead: 1.15, bass: 0.9, brass: 0.9, pad: 0.8, drums: 1.05 },
+    sections: {
+      I: { bars: 2, chords: 'Em F/E', bass: 'mach', drums: 'bsIntro bsFill', stab: 'boss2 boss1', timp: 'hit1 roll2' },
+      A: {
+        bars: 8, chords: 'Em F/E Em Bb Em F/E C B7', pad: 'hold', padVel: 0.6,
+        bass: 'mach', drums: 'bsBeatC bsBeat bsBeat2 bsFill bsBeatC bsBeat bsBeat2 bsFill',
+        stab: 'boss2', timp: 'boss - boss - boss - boss roll2', arp: 'ost', arpInst: 'twang', arpLo: 52, arpVel: 0.5,
+        lead:
+          'E5:2 E5:2 F5:4 E5:2 B4:2 E5:4 ' +
+          'F5:2 G5:2 A5:4 G5:2 F5:2 E5:4 ' +
+          'B5:4 A5:2 G5:2 F5:4 E5:4 ' +
+          'F5:6 D5:2 Bb4:8 ' +
+          'E6:2 E6:2 D6:4 B5:2 G5:2 E5:4 ' +
+          'F5:2 E5:2 F5:4 A5:4 C6:4 ' +
+          'B5:4 A5:2 G5:2 E5:4 C6:4 ' +
+          'B5:4 D#6:4 F#6:4 A6:4',
+      },
+      B: {
+        bars: 8, chords: 'Am Bb Am Bb Gm A Bb B7', pad: 'hold', padVel: 0.7,
+        bass: 'ost16b', drums: 'bsGongC bsBeat bsBeat2 bsFill bsGong bsBeat bsBeat2 bsFill',
+        stab: 'boss1', arp: 'ost', arpLo: 64, arpVel: 0.55,
+        lead:
+          'A5:4 C6:2 B5:2 E6:8 ' +
+          'D6:4 Bb5:2 F5:2 D6:8 ' +
+          'C6:4 A5:2 E5:2 Eb6:8 ' +
+          'D6:4 F6:2 D6:2 Bb5:8 ' +
+          'G5:4 Bb5:2 D6:2 Db6:8 ' +
+          'C#6:4 E6:2 A6:2 G6:8 ' +
+          'F6:4 D6:2 Bb5:2 F5:8 ' +
+          'F#5:4 A5:4 B5:4 D#6:4',
       },
       A2: null, // filled below
       T: {
-        bars: 4, chords: 'F E F E7', pad: 'hold', padVel: 0.8, bass: 'ost16 ost16b ost16 ost16b',
-        drums: 'bBeatC bBeat bBeat bFill', stab: 'boss1', timp: 'hit1 hit1 hit1 roll', leadVel: 1,
-        lead: 'F5:16 E5:16 F5:8 G5:8 G#5:16',
+        bars: 4, chords: 'C B7 C B7', pad: 'hold', padVel: 0.8, bass: 'mach ost16b mach ost16b',
+        drums: 'bsGongC bsBeat2 bsBeat2 bsFill', stab: 'boss1', timp: 'hit1 hit1 hit1 roll', leadVel: 1,
+        lead: 'E6:16 D#6:16 E6:8 F6:8 F#6:16',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // FINAL BOSS — "Black Cloud Sovereign" (Hắc Vân). D phrygian with the
-  // in-scale colour (D Eb G A Bb) and an A7b9 dominant, 176 BPM.
-  // Intro(4, once) -> A B A2 C B2 T.  ≈ 60 s loop.
+  // FINAL BOSS — "Thời Ảnh tối thượng". D phrygian / A7b9, 176 BPM. Machine
+  // war drums, kèn bầu turned menacing, and an "M" section where the Lạc Hồng
+  // theme fights back in D major (brass, choir, nhị counter) before the
+  // darkness answers with the same motif bent into phrygian.
+  // Intro(4, once) -> A B A2 M C B2 T.  ≈ 71 s loop.
   bossFinal: {
-    bpm: 176, scale: [2, 3, 5, 7, 9, 10, 0], intro: ['I'], loop: ['A', 'B', 'A2', 'C', 'B2', 'T'],
-    mix: { lead: 1.15, bass: 0.95, brass: 0.95, pad: 0.85, timp: 1.15 },
+    bpm: 176, scale: [2, 3, 5, 7, 9, 10, 0], intro: ['I'], loop: ['A', 'B', 'A2', 'M', 'C', 'B2', 'T'],
+    mix: { lead: 1.15, bass: 0.95, brass: 0.95, pad: 0.85, timp: 1.15, drums: 1.05 },
     sections: {
       I: {
         bars: 4, chords: 'Dm Eb Dm A7b9', pad: 'swell', padVel: 0.9, bass: 'ost16',
-        drums: 'bIntro bFill2 bIntro bFill', stab: 'boss2 boss1 boss2 boss1', timp: 'hit1 roll2 hit1 roll',
+        drums: 'fIntro fFill fIntro fFill', stab: 'boss2 boss1 boss2 boss1', timp: 'hit1 roll2 hit1 roll',
         counterInst: 'zither', counterVel: 0.9,
-        counter:
-          'D5:1 Eb5 G5 A5 Bb5 D6 Eb6 G6 A6:8 ' +
-          'r:16 ' +
-          'A6:1 G6 Eb6 D6 Bb5 A5 G5 Eb5 D5:8 ' +
-          'r:16',
+        counter: 'D5:1 A5 D6 Eb6 D6 A5 D5 A4 D5:8 r:16 D5:1 A5 D6 E6 F6 E6 C#6 A5 D6:8 r:16',
       },
       A: {
-        bars: 8, chords: 'Dm Dm Eb Dm Gm Eb A7b9 A7b9', pad: 'hold', padVel: 0.65,
-        bass: 'ost16', drums: 'fBeatC fBeat fBeat bFill fBeatC fBeat fBeat bFill2',
+        bars: 8, chords: 'Dm Eb Dm Eb Gm Eb A7b9 A7b9', pad: 'hold', padVel: 0.65,
+        bass: 'ost16', drums: 'fWarC fWar fWar fFill fWarC fWar fWar fFill',
         stab: 'boss2', timp: 'boss - boss - boss - boss roll2',
         lead:
-          'D5:6 Eb5:2 D5:4 A4:4 ' +
-          'Bb4:3 A4:1 G4:4 A4:8 ' +
-          'G5:6 A5:2 Bb5:4 G5:4 ' +
-          'A5:3 Bb5:1 A5:4 D5:8 ' +
-          'D6:6 Bb5:2 G5:4 D5:4 ' +
-          'Eb6:6 D6:2 Bb5:4 G5:4 ' +
-          'A5:4 Bb5:4 C#6:4 E6:4 ' +
-          'G6:4 F6:2 E6:2 C#6:4 Bb5:4',
+          'D5:4 A5:4 Ab5:2 A5:2 D6:4 ' +
+          'Eb6:4 D6:2 A5:2 Bb5:8 ' +
+          'D5:4 A5:4 Ab5:2 A5:2 F6:4 ' +
+          'G6:4 F6:2 Eb6:2 D6:8 ' +
+          'G5:2 Bb5:2 D6:4 C6:2 Bb5:2 G5:4 ' +
+          'Bb5:2 G5:2 Eb5:4 F5:2 G5:2 Bb5:4 ' +
+          'A5:4 C#6:4 E6:4 G6:4 ' +
+          'F6:4 Eb6:2 C#6:2 A5:8',
       },
       B: {
         bars: 8, chords: 'Gm Dm Eb Bb Gm Dm Eb A7b9', pad: 'hold', padVel: 0.75,
-        bass: 'ost16b', drums: 'fTaiko fTaiko fTaiko bFill fTaiko fTaiko fTaiko bFill2',
+        bass: 'ost16b', drums: 'fTaiko fTaiko fTaiko fFill fTaiko fTaiko fTaiko fFill',
         stab: 'boss1', arp: 'kotek', arpInst: 'zither', arpLo: 62, arpVel: 0.45,
-        leadInst: 'erhu', leadVel: 1.1, harm: 'oct',
+        leadInst: 'ken', leadVel: 1.05, harm: 'oct',
         lead:
-          'G5:2 A5:2 Bb5:4~ D6:8 ' +
-          'C6:3 Bb5:1 A5:4 F5:8 ' +
-          'Eb5:2 G5:2 Bb5:4 A5:2 G5:2 Eb5:4 ' +
-          'D5:12 r:2 D5:1 Eb5:1 ' +
-          'G5:2 A5:2 Bb5:4 D6:4 G6:4 ' +
+          'G5:3 A5:1 Bb5:4 D6:8 ' +
           'F6:3 Eb6:1 D6:4 A5:8 ' +
-          'Bb5:2 A5:2 G5:2 Eb5:2 G5:2 Bb5:2 Eb6:4 ' +
-          'C#6:6 D6:1 C#6:1 A5:8',
+          'Eb6:2 D6:2 C6:2 Bb5:2 G5:4 Bb5:4 ' +
+          'D6:12 r:4 ' +
+          'G5:3 A5:1 Bb5:4 Eb6:8 ' +
+          'D6:3 C6:1 A5:4 F5:8 ' +
+          'G5:2 Bb5:2 Eb6:2 G6:2 F6:4 Eb6:4 ' +
+          'C#6:8 A5:4 E5:4',
       },
       A2: null, B2: null,
+      M: {
+        bars: 8, chords: LH_CHORDS, pad: 'hold', padVel: 1, choir: 0.75,
+        bass: 'drive8', drums: 'fHeroC fHero fHero fHero fHeroC fHero fHero fFill',
+        stab: 'hits4 hits4 hits4 push', arp: 'up16', arpInst: 'zither', arpLo: 62, arpVel: 0.4,
+        timp: 'march march march roll2', harm: 'oct', leadVel: 1.05, lead: LH_THEME,
+        counterInst: 'erhu', counterVel: 0.42, counter: LH_COUNTER,
+      },
       C: {
-        bars: 8, chords: 'Bb A Gm A Bb A Bb,C A7b9', pad: 'hold', padVel: 0.95,
-        bass: 'half half half half ost16 ost16 ost16 ost16b', drums: 'halfC half half half bBeatC bBeat bBeat build',
+        bars: 8, chords: 'Bb A Gm A Bb A Bb,C A7b9', pad: 'hold', padVel: 0.95, choir: 0.55,
+        bass: 'half half half half ost16 ost16 ost16 ost16b', drums: 'fHalfC fHalf fHalf fHalf fWarC fWar fWar fFill',
         timp: 'roll2 hit1 roll2 hit1 march march march roll2', arp: 'sweep', arpInst: 'zither', arpLo: 57, arpVel: 0.5,
         harm: 'dia3', leadVel: 1,
         lead:
-          'F5:8 D5:8 ' +
-          'E5:8 C#5:8 ' +
-          'D5:8 Bb4:8 ' +
-          'C#5:8 E5:8 ' +
-          'F5:8 Bb5:8 ' +
-          'A5:8 E5:8 ' +
-          'D6:8 E6:8 ' +
+          'A4:3 D5:1 Eb5:4 A5:6 G5:1 Eb5:1 ' +
+          'G5:4 Eb5:2 D5:2 C#5:8 ' +
+          'A4:3 D5:1 Eb5:4 Bb5:6 A5:1 G5:1 ' +
+          'A5:4 G5:2 E5:2 C#6:8 ' +
+          'D6:3 Bb5:1 A5:4 Bb5:2 D6:2 F6:4 ' +
+          'E6:4 C#6:4 A5:8 ' +
+          'D6:4 F6:4 G6:4 E6:4 ' +
           'C#6:16',
       },
       T: {
         bars: 4, chords: 'Eb A7b9 Eb A7b9', pad: 'hold', padVel: 0.9, bass: 'ost16 ost16b ost16 ost16b',
-        drums: 'fBeatC fBeat fBeat bFill2', stab: 'boss1', timp: 'hit1 hit1 hit1 roll', harm: 'oct',
-        lead: 'Eb6:16 C#6:16 Bb5:8 C6:8 C#6:16',
+        drums: 'fWarC fWar fWar fFill', stab: 'boss1', timp: 'hit1 hit1 hit1 roll', harm: 'oct',
+        lead: 'G6:16 E6:16 Eb6:8 E6:8 C#6:16',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // CLEAR — victory fanfare (C major, 128 BPM, 4 bars ≈ 7.5 s) flowing into a
-  // warm results loop (90 BPM, 16 bars ≈ 42.7 s).
+  // CLEAR — fanfare on the Lạc Hồng head (D, 128 BPM, 4 bars ≈ 7.5 s, with a
+  // bVI–bVII lift) flowing into a calm results loop (88 BPM, 16 bars ≈ 44 s):
+  // sáo over bells, then đàn tranh with a nhị counter.
   clear: {
-    bpm: 128, scale: [0, 2, 4, 5, 7, 9, 11], intro: ['F'], loop: ['R1', 'R2'],
+    bpm: 128, scale: SC.Dbac, intro: ['F'], loop: ['R1', 'R2'],
     mix: { lead: 1.0, pad: 1.0, arp: 0.8 },
     sections: {
       F: {
-        bars: 4, chords: 'C F,G Ab,Bb C', pad: 'hold', padVel: 1, bass: 'half half half long',
+        bars: 4, chords: 'D G,A Bb,C D', pad: 'hold', padVel: 1, choir: 0.5, bass: 'half half half long',
         drums: 'fan1 fanB fanRoll fan1', timp: 'hit1 hit13 roll hit1', stab: '- - - fanf', harm: 'dia3',
         lead:
-          'G4:4/3 G4 G4 C5:4 E5:4 G5:4 ' +
-          'A5:6 F5:2 G5:6 D5:2 ' +
-          'C6:6 Ab5:2 Bb5:6 D6:2 ' +
-          'E6:14 r:2',
+          'A4:3 D5:1 E5:4 A5:8 ' +
+          'G5:4 E5:4 A5:6 B5:2 ' +
+          'D6:6 Bb5:2 C6:6 E6:2 ' +
+          'D6:14 r:2',
       },
       R1: {
-        bars: 8, bpm: 90, chords: 'F G Em7 Am Dm7 G Cadd9 C', pad: 'hold', padVel: 0.8,
-        bass: 'res', drums: 'res', arp: 'bell4', arpInst: 'bell', arpLo: 72, arpVel: 0.7,
-        leadInst: 'soft', leadVel: 0.9,
+        bars: 8, bpm: 88, chords: 'G A F#m Bm Em7 A Dsus2 D', pad: 'hold', padVel: 0.8,
+        bass: 'res', drums: 'res res res res res res res resB', arp: 'bell4', arpInst: 'bell', arpLo: 74, arpVel: 0.6,
+        leadInst: 'sao', leadVel: 0.95,
         lead:
-          'C5:4 F5:4 A5:6 G5:2 ' +
-          'G5:8 D5:8 ' +
-          'E5:4 G5:4 B5:6 A5:2 ' +
-          'A5:12 E5:4 ' +
-          'F5:4 A5:4 C6:6 B5:2 ' +
-          'B5:6 A5:2 G5:8 ' +
-          'D5:4 E5:4 G5:8 ' +
-          'E5:12 r:4',
+          'B4:4 D5:4 E5:6 D5:2 ' +
+          'E5:8 A4:8 ' +
+          'A4:4 B4:2 D5:2 E5:8 ' +
+          'D5:12 r:4 ' +
+          'G5:4 E5:4 B5:6 A5:2 ' +
+          'A5:8 E5:8 ' +
+          'D5:4 E5:4 A5:8 ' +
+          'D5:12 r:4',
       },
       R2: {
-        bars: 8, bpm: 90, chords: 'F G Em7 Am Dm7 G Cadd9 C', pad: 'hold', padVel: 0.85,
-        bass: 'res', drums: 'resB', arp: 'bell8', arpInst: 'bell', arpLo: 72, arpVel: 0.6,
-        counterInst: 'soft', counterVel: 0.75,
-        counter:
-          'A4:8 C5:8 B4:8 D5:8 G4:8 B4:8 C5:8 E5:8 ' +
-          'F4:8 A4:8 B4:8 D5:8 E5:8 D5:8 C5:16',
+        bars: 8, bpm: 88, chords: 'G A F#m Bm Em7 A Dsus2 D', pad: 'hold', padVel: 0.85,
+        bass: 'res', drums: 'resB', arp: 'arp8', arpInst: 'zither', arpLo: 62, arpVel: 0.5,
+        counterInst: 'erhu', counterVel: 0.5,
+        counter: 'B4:8 D5:8 C#5:8 E5:8 A4:8 C#5:8 B4:8 D5:8 G4:8 B4:8 A4:8 C#5:8 A4:16 F#4:16',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // GAME OVER — 2 bars at 96 BPM (5 s), A minor, sighing descent. No loop.
+  // GAME OVER — 2 bars at 92 BPM (≈ 5.2 s), D minor, a đàn bầu sigh that
+  // droops on the last note under a temple bell. No loop.
   gameover: {
-    bpm: 96, scale: [9, 11, 0, 2, 4, 5, 7], intro: ['G'], loop: [],
+    bpm: 92, scale: SC.Dmin, intro: ['G'], loop: [],
     mix: { lead: 1.5, pad: 1.4, bass: 0.9, timp: 1.2 },
     sections: {
       G: {
-        bars: 2, chords: 'Am,Dm E,Am', pad: 'hold', padVel: 0.9, bass: 'half', timp: 'hit1',
-        leadInst: 'soft', leadVel: 0.95,
-        lead: 'A5:6 E5:2 F5:6 D5:2 B4:6 G#4:2 A4:8',
+        bars: 2, chords: 'Gm,Dm A7,Dm', pad: 'hold', padVel: 0.9, bass: 'half', timp: 'hit1', drums: 'goBell',
+        leadInst: 'bau', leadVel: 1.0,
+        lead: 'A5:6 G5:2 F5:4 D5:4 E5:4 C#5:4 D5:8_',
       },
     },
   },
 
   // ---------------------------------------------------------------------------
-  // ENDING — "Ten Lights over Asia". D major, 100 BPM, warm and triumphant.
-  // Swell(2, once) -> A(8, flute) -> B(8, brass) -> C(8, erhu) -> B2(8).
-  // ≈ 77 s loop.
+  // ENDING — "Nghìn năm văn hiến". D điệu Bắc, 96 BPM, warm and majestic.
+  // Swell(2, once) -> A(8, sáo: the theme's head, softly) -> B(8, the full
+  // Lạc Hồng theme: brass + choir) -> C(8, đàn nhị) -> B2(8, theme with
+  // choir, stabs and nhị counter).  ≈ 80 s loop.
   ending: {
-    bpm: 100, scale: SC.Dmaj, intro: ['S'], loop: ['A', 'B', 'C', 'B2'],
+    bpm: 96, scale: SC.Dbac, intro: ['S'], loop: ['A', 'B', 'C', 'B2'],
     mix: { lead: 1.05, pad: 1.0, arp: 0.85, timp: 0.8, brass: 0.8 },
     sections: {
       S: {
         bars: 2, chords: 'Dsus2 Asus4,A', pad: 'swell', padVel: 1, bass: 'long',
-        timp: 'roll2 roll', drums: '- tSwell', arp: 'bell4', arpInst: 'bell', arpLo: 74, arpVel: 0.8,
+        timp: 'roll2 roll', drums: 'lhOpen tSwell', arp: 'bell4', arpInst: 'bell', arpLo: 74, arpVel: 0.8,
         counterInst: 'zither', counterVel: 0.8,
-        counter: 'r:16 A4:1 B4 D5 E5 F#5 A5 B5 D6 E6:8',
+        counter: 'r:16 A4:1 B4 D5 E5 G5 A5 B5 D6 E6:8',
       },
       A: {
-        bars: 8, chords: 'D Bm G A D Bm Em7 A', pad: 'hold', padVel: 0.75,
-        bass: 'walk', drums: 'res res res resB res res res tFill',
+        bars: 8, chords: 'D G Bm A D G Em7 Asus4,A', pad: 'hold', padVel: 0.75,
+        bass: 'walk', drums: 'res res res resB res res res lhFill',
         arp: 'arp8', arpInst: 'zither', arpLo: 62, arpVel: 0.65,
-        leadInst: 'soft', leadVel: 1.05,
+        leadInst: 'sao', leadVel: 1.05,
         lead:
-          'F#5:6 E5:2 D5:4 A4:4 ' +
-          'B4:6 D5:2 F#5:8 ' +
-          'G5:6 F#5:2 E5:4 D5:4 ' +
+          'A4:3 D5:1 E5:4 A5:8 ' +
+          'B5:4 A5:2 G5:2 E5:8 ' +
+          'D5:3 E5:1 B4:4 D5:6 E5:2 ' +
           'E5:12 r:4 ' +
-          'A5:6 F#5:2 D5:4 E5:4 ' +
-          'F#5:6 D5:2 B4:8 ' +
-          'D5:4 E5:4 G5:4 B5:4 ' +
+          'A4:3 D5:1 E5:4 B5:8 ' +
+          'D6:4 B5:2 A5:2 G5:8 ' +
+          'E5:4 G5:2 A5:2 B5:4 D6:4 ' +
           'A5:12 r:4',
       },
       B: {
-        bars: 8, chords: 'G A F#m Bm G A D D', pad: 'hold', padVel: 1,
-        bass: 'walk', drums: 'tMarchC tMarch tMarch tMarch tBigC tBig tBig tFill',
-        timp: 'hit13 hit1 hit1 roll2 march march march roll', arp: 'arpB', arpLo: 66, arpVel: 0.5,
-        stab: '- - - - - - - push', leadVel: 0.95,
-        lead:
-          'D5:2 E5:2 G5:4 B5:6 A5:2 ' +
-          'A5:6 E5:2 C#5:8 ' +
-          'C#5:2 E5:2 F#5:4 A5:6 F#5:2 ' +
-          'F#5:6 E5:2 D5:8 ' +
-          'B4:2 D5:2 G5:4 B5:6 D6:2 ' +
-          'C#6:6 B5:2 A5:8 ' +
-          'F#5:4 A5:4 D6:4 E6:4 ' +
-          'F#6:12 r:4',
+        bars: 8, chords: LH_CHORDS, pad: 'hold', padVel: 1, choir: 0.55,
+        bass: 'walk', drums: 'lhMarchC lhMarch lhMarch lhMarch lhBigC lhBig lhBig lhFill',
+        timp: 'hit13 hit1 hit1 roll2 march march march roll', arp: 'arpB', arpInst: 'zither', arpLo: 66, arpVel: 0.5,
+        stab: '- - - - - - - push', leadVel: 0.95, lead: LH_THEME,
       },
       C: {
         bars: 8, chords: 'Bm G D A Bm G Em7 A', pad: 'hold', padVel: 0.85,
-        bass: 'half', drums: 'res resB res resB res resB res tFill',
+        bass: 'half', drums: 'res resB res resB res resB res lhFill',
         arp: 'bell8', arpInst: 'bell', arpLo: 71, arpVel: 0.5,
         leadInst: 'erhu', leadVel: 1,
         lead:
-          'D6:6 C#6:2 B5:4 F#5:4 ' +
-          'G5:6 A5:2 B5:8 ' +
-          'A5:6 F#5:2 D5:8 ' +
-          'E5:4 F#5:2 A5:2 C#6:8 ' +
-          'D6:6 E6:2 F#6:4 D6:4 ' +
+          'D5:4 F#5:4 B5:6 A5:2 ' +
+          'G5:4 E5:2 D5:2 B4:8 ' +
+          'A4:4 D5:2 E5:2 F#5:6 A5:2 ' +
+          'E5:12 r:4 ' +
+          'D6:4 B5:2 A5:2 F#5:4 A5:4 ' +
           'B5:6 D6:2 G5:8 ' +
-          'G5:4 F#5:2 E5:2 B5:4 D6:4 ' +
+          'E5:4 G5:2 B5:2 E6:4 D6:4 ' +
           'C#6:8 E6:4 A5:4',
       },
       B2: null, // filled below
@@ -3386,156 +3486,130 @@ const SONGS = {
   },
 };
 
-// Transpose a melody string / chord string by `st` semitones (sharps spelling).
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-function xposeMel(str, st) {
-  return str.trim().split(/\s+/).map((tok) => {
-    const m = /^([A-G])([#b]?)(\d)(.*)$/.exec(tok);
-    if (!m) return tok;
-    const n = 12 * (+m[3] + 1) + pcOf(m[1], m[2]) + st;
-    return NOTE_NAMES[n % 12] + (Math.floor(n / 12) - 1) + m[4];
-  }).join(' ');
-}
-function xposeChords(str, st) {
-  return str.replace(/([A-G])([#b]?)/g, (_, l, a) => NOTE_NAMES[(pcOf(l, a) + st) % 12]);
-}
-
 // Variations built from existing sections.
 {
   const T = SONGS.title.sections;
   T.B2 = Object.assign({}, T.B, {
-    stab: 'hits4 push hits4 push hits4 push hits4 push',
-    counterInst: 'erhu', counterVel: 0.42,
-    counter: 'B5:16 C#6:16 D6:16 A5:16 B5:16 C#6:16 D6:8 C#6:8 D6:16',
+    choir: 0.65, stab: 'hits4 push hits4 push hits4 push hits4 push',
+    counterInst: 'erhu', counterVel: 0.42, counter: LH_COUNTER,
   });
 
   const S1 = SONGS.stage1.sections;
   S1.A2 = Object.assign({}, S1.A, {
-    harm: 'oct', stab: 'syncB', arp: 'arpA', arpVel: 0.5,
-    drums: 'driveC drive2 drive2 hnDrive drive drive2 drive2 fillT',
+    harm: 'p4', arp: 'kotek', arpVel: 0.45, choir: 0.35,
+    drums: 'vlAC vlA2 vlA2 vlA vlA2 vlA2 vlA vlF',
   });
   S1.B2 = Object.assign({}, S1.B, {
-    harm: 'dia3', stab: 'hits4 push hits4 push hits4 push hits4 push',
-    drums: 'hookC hook hook hook hookC hook hook build', timp: '- - - - - - - roll2',
+    harm: 'oct', choir: 0.5, arp: 'arpB', timp: '- - - - - - - roll2',
   });
 
   const S2 = SONGS.stage2.sections;
   S2.A2 = Object.assign({}, S2.A, {
-    harm: 'oct', arp: 'ranat', arpLo: 69, arpVel: 0.5,
-    drums: 'thaiC thai2 thai thai2 thai thai2 thai thaiF',
+    harm: 'oct', arp: 'cross', arpVel: 0.6, stab: 'syncB',
+    drums: 'alAC alA2 alA2 alA2 alA alA2 alA2 alF',
   });
   S2.B2 = Object.assign({}, S2.B, {
-    harm: 'dia3', stab: 'hits4 push hits4 push hits4 push hits4 push', timp: '- - - - - - - roll2',
-    drums: 'hookC hook thai2 hook hookC hook thai2 build',
+    harm: 'dia3', stab: 'hits4 push hits4 push hits4 push hits4 push',
+    counterInst: 'erhu', counterVel: 0.45,
+    counter: 'E5:16 F#5:16 G5:16 B5:16 E5:16 F#5:16 F#5:16 D#5:16',
   });
 
   const S3 = SONGS.stage3.sections;
   S3.A2 = Object.assign({}, S3.A, {
-    harm: 'dia3', arp: 'zig', arpInst: 'pluck', arpVel: 0.55, stab: 'tres',
-    drums: 'stormC joget joget storm joget joget storm jogetF',
+    leadInst: 'zither', leadVel: 1.25, counterInst: 'sao', counterVel: 0.5,
+    counter: 'G5:16 F5:16 F5:16 D5:16 G5:16 E5:16 F5:16 D5:16',
+    arp: 'glow', arpInst: 'bell', arpLo: 72, arpVel: 0.45,
+    drums: 'hlRowC hlRow2 hlRow2 hlRow2 hlRow hlRow2 hlRow2 hlF',
   });
-  S3.B2 = Object.assign({}, S3.B, {
-    harm: 'dia3', stab: 'hits4 syncB hits4 syncB hits4 syncB hits4 push',
-    timp: 'hit1 - hit1 - hit1 - hit1 roll2',
-  });
+  S3.B2 = Object.assign({}, S3.B, { harm: 'oct', choir: 0.6, timp: 'march march march roll2' });
 
   const S4 = SONGS.stage4.sections;
   S4.A2 = Object.assign({}, S4.A, {
-    leadInst: 'lead', leadVel: 0.95, arp: 'neon2', stab: 'offb', bass: 'oct8',
-    drums: 'edmC edm16 edm16 edm16 edm16 edm16 edm16 edmBuild',
+    harm: 'dia3', arp: 'kotek', arpVel: 0.45, drums: 'lyAC lyB lyA lyB lyA lyB lyA lyF',
   });
   S4.B2 = Object.assign({}, S4.B, {
-    counterInst: 'soft', counterVel: 0.5,
-    counter: 'F5:16 G5:16 G5:16 Ab5:16 F5:16 G5:16 Ab5:16 Ab5:16',
+    leadInst: 'lead', leadVel: 0.95, choir: 0.5, stab: 'hits4 push hits4 push hits4 push hits4 push',
+    counterInst: 'erhu', counterVel: 0.42,
+    counter: 'D6:16 C6:16 A5:16 F5:16 D6:16 G5:16 C6:16 F5:16',
   });
 
   const S5 = SONGS.stage5.sections;
   S5.A2 = Object.assign({}, S5.A, {
-    harm: 'oct', drums: 'kendC kend2 kend2 kend2 kend kend2 kend2 kendF', timp: 'hit1 - hit1 - hit1 - hit1 roll2',
+    harm: 'dia3', stab: 'syncB', counterInst: 'erhu', counterVel: 0.45,
+    counter: 'A5:16 F5:16 G5:16 A5:16 F5:16 F5:16 Bb5:16 C#6:16',
+    drums: 'bdMarchC bdMarch2 bdMarch2 bdMarch2 bdMarch bdMarch2 bdMarch2 bdF',
   });
   S5.B2 = Object.assign({}, S5.B, {
-    harm: 'dia3', counterInst: 'bell', counterVel: 0.5,
-    counter:
-      'C5:4 G4 E4 G4 F4:4 C5 E5 C5 B4:4 G4 E4 G4 B4:4 E5 B4:8 ' +
-      'E5:4 C5 G4 C5 F5:4 E5 C5 F4 G4:4 B4 G4 F4 E4:8 B4:8',
+    harm: 'oct', choir: 0.6, arp: 'arp8', arpInst: 'zither', arpLo: 62, arpVel: 0.45,
   });
 
   const S6 = SONGS.stage6.sections;
   S6.A2 = Object.assign({}, S6.A, {
-    harm: 'dia3', arp: 'arpA', arpInst: 'zither', arpLo: 60, arpVel: 0.4,
-    drums: 'latinC latin2 latin2 latin2 latin latin2 latin2 latinF',
+    arp: 'kotek', arpVel: 0.55, choir: 0.35, choirLo: 50, choirHi: 70,
+    counterInst: 'khen', counterVel: 0.5,
+    counter: 'C4:16 C4:16 C4:16 D4:16 C4:16 C4:16 C4:16 B3:16',
+    drums: 'tdAC tdA2 tdA2 tdA2 tdA tdA2 tdA2 tdF',
   });
   S6.B2 = Object.assign({}, S6.B, {
-    stab: 'mont', timp: '- - - - - - - roll2', drums: 'latinC latin2 latin2 latin2 latinC latin2 latin2 build',
+    harm: 'dia3', counterInst: 'erhu', counterVel: 0.45,
+    counter: 'C5:16 G4:16 C5:16 Bb4:16 C5:16 G4:16 Ab4:16 B4:16',
   });
 
   const S7 = SONGS.stage7.sections;
   S7.A2 = Object.assign({}, S7.A, {
-    harm: 'oct', arp: 'arpA', arpLo: 60, arpVel: 0.45, stab: 'syncA',
-    drums: 'tablaC tabla2 tabla2 tabla2 tabla tabla2 tabla2 tabFill',
+    leadInst: 'nguyet', leadVel: 1.2, harm: 'oct', counterInst: 'sao', counterVel: 0.45,
+    counter: 'B5:16 G5:16 G5:16 F#5:16 B5:16 B5:16 C6:16 A5:16',
+    drums: 'lsAC lsA2 lsA2 lsA2 lsA lsA2 lsA2 lsF',
   });
   S7.B2 = Object.assign({}, S7.B, {
-    harm: 'dia3', stab: 'hits4 push hits4 push hits4 push hits4 push',
-    timp: 'march march march march march march march roll',
+    harm: 'oct', choir: 0.45, stab: 'hits4 push hits4 push hits4 push hits4 push', timp: 'march march march roll2',
   });
 
   const S8 = SONGS.stage8.sections;
   S8.A2 = Object.assign({}, S8.A, {
-    harm: 'oct', arp: 'up16', arpVel: 0.4, drums: 'bjC bjBig bj bjBig bj bjBig bj bjFill',
-  });
-  S8.B2 = Object.assign({}, S8.B, {
-    harm: 'dia3', stab: 'hits4 push hits4 push hits4 push hits4 push',
-    counterInst: 'erhu', counterVel: 0.42,
-    counter: 'D6:16 C#6:16 C#6:16 D6:16 B5:16 C#6:16 D6:16 A5:16',
+    counterInst: 'sao', counterVel: 0.45,
+    counter: 'E5:16 B4:16 C5:16 D5:16 E5:16 G5:16 F5:16 E5:16',
+    arp: 'glow', arpInst: 'bell', arpLo: 69, arpVel: 0.4,
+    drums: 'phAC phA2 phA2 phA2 phA phA2 phA2 phF',
   });
 
   const S9 = SONGS.stage9.sections;
   S9.A2 = Object.assign({}, S9.A, {
-    stab: 'offb', bass: 'oct8', counterInst: 'erhu', counterVel: 0.45,
-    counter: 'B5:16 G5:16 D6:16 A5:16 B5:16 G5:16 A5:16 F#5:16',
+    harm: 'oct', arp: 'cross', counterInst: 'lead', counterVel: 0.35,
+    counter: 'D5:16 C5:16 Bb4:16 A4:16 D5:16 C5:16 G4:8 A4:8 A4:16',
+    drums: 'tsAC tsA2 tsA2 tsA2 tsA tsA2 tsA2 tsF',
   });
-  S9.B2 = Object.assign({}, S9.B, { harm: 'dia3', stab: 'hits4 offb hits4 offb hits4 offb hits4 push' });
+  S9.B2 = Object.assign({}, S9.B, {
+    harm: 'oct', choir: 0.65, stab: 'hits4 push hits4 push hits4 push hits4 push',
+    counterInst: 'erhu', counterVel: 0.45,
+    counter: 'F5:16 F5:16 G5:16 G5:16 F5:16 A5:16 Bb5:16 C6:16',
+  });
 
   const S10 = SONGS.stage10.sections;
   S10.A2 = Object.assign({}, S10.A, {
-    harm: 'dia3', arp: 'up16', arpInst: 'zither', arpLo: 64, arpVel: 0.4,
-    drums: 'tkDriveC tkDrive tkTaiko tkDrive tkDrive tkDrive tkTaiko tkFill',
-  });
-  S10.B2 = Object.assign({}, S10.B, {
-    harm: 'dia3', stab: 'hits4 push hits4 push hits4 push hits4 push',
-    drums: 'hookC tkDrive tkDrive tkDrive hookC tkDrive tkDrive build',
-    counterInst: 'erhu', counterVel: 0.42,
-    counter: 'A5:16 B5:16 C6:16 E6:16 F6:16 E6:16 F6:16 E6:16',
-  });
-  // Climax: the chorus lifted a semitone (E -> F in-scale) with octave brass,
-  // soaring erhu, blast beats and marching timpani.
-  S10.D = Object.assign({}, S10.B, {
-    chords: xposeChords(S10.B.chords, 1), lead: xposeMel(S10.B.lead, 1), harm: 'oct',
-    counterInst: 'erhu', counterVel: 0.5, counter: xposeMel(S10.B2.counter, 1),
-    stab: 'hits4', arp: 'up16', arpInst: 'zither', arpLo: 65, arpVel: 0.4, padVel: 1.05,
-    drums: 'tkBlastC tkBlast tkBlast tkFill tkBlastC tkBlast tkBlast tkFill',
-    timp: 'march march march roll2 march march march roll2',
+    leadInst: 'ken', leadVel: 0.95, choir: 0.35, counterInst: 'erhu', counterVel: 0.45,
+    counter: 'A5:16 G5:16 F5:16 E5:16 F5:16 A5:16 Bb5:16 E5:16',
+    drums: 'hueAC hueA2 hueA2 hueA2 hueA hueA2 hueA2 hueF',
   });
 
   const SB = SONGS.boss.sections;
-  SB.A2 = Object.assign({}, SB.A, { harm: 'dia3', stab: 'boss1', arp: 'arpB', arpLo: 69, arpVel: 0.55 });
+  SB.A2 = Object.assign({}, SB.A, { harm: 'dia3', stab: 'boss1', arp: 'arpB', arpInst: 'pluck', arpLo: 64, arpVel: 0.5 });
 
   const SF = SONGS.bossFinal.sections;
   SF.A2 = Object.assign({}, SF.A, {
-    harm: 'dia3', stab: 'boss1', arp: 'ost', arpLo: 62, arpVel: 0.5,
-    drums: 'fTaiko fBeat fBeat bFill fTaiko fBeat fBeat bFill2',
+    harm: 'dia3', stab: 'boss1', arp: 'ost', arpInst: 'twang', arpLo: 62, arpVel: 0.5,
+    drums: 'fTaiko fWar fWar fFill fTaiko fWar fWar fFill',
   });
   SF.B2 = Object.assign({}, SF.B, {
-    stab: 'hits4', timp: 'march march march roll2 march march march roll2',
-    drums: 'fBeatC fBeat fBeat bFill fBeatC fBeat fBeat bFill2',
+    stab: 'hits4', choir: 0.5, timp: 'march march march roll2',
+    drums: 'fWarC fWar fWar fFill fWarC fWar fWar fFill',
   });
 
   const E = SONGS.ending.sections;
   E.B2 = Object.assign({}, E.B, {
-    harm: 'dia3', stab: 'hits4 push hits4 push hits4 push hits4 push',
-    counterInst: 'erhu', counterVel: 0.42,
-    counter: 'B5:16 C#6:16 C#6:16 B5:16 B5:16 C#6:16 D6:16 D6:16',
-    drums: 'tBigC tBig tBig tBig tBigC tBig tBig tFill',
+    harm: 'dia3', choir: 0.75, stab: 'hits4 push hits4 push hits4 push hits4 push',
+    counterInst: 'erhu', counterVel: 0.42, counter: LH_COUNTER,
+    drums: 'lhBigC lhBig lhBig lhBig lhBigC lhBig lhBig lhFill',
   });
 }
 
