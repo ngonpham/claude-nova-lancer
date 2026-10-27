@@ -461,7 +461,7 @@ export const STAGES = [
       walls: ['#ece0c4', '#e0d0a8', '#d8c8a0'], roofs: ['#8a4a2a', '#c8a032', '#3a6a4a'], hallRoof: ['#d8b03a', '#c8a032'], boat: 'sampan', lamp: 'lantern',
     },
     enemyTint: '#e0c8ff',
-    boss: { type: 'serpent', model: 'haclong', name: 'HẮC LONG THỜI ẢNH', sub: 'Thời Ảnh hiện nguyên hình, quấn lấy rồng vàng kinh thành', hp: 1.5, turretHp: 13, scale: 1.3, final: true },
+    boss: { type: 'serpent', model: 'haclong', name: 'HẮC LONG THỜI ẢNH', sub: 'Thời Ảnh hiện nguyên hình, quấn lấy rồng vàng kinh thành', hp: 1.5, turretHp: 11, scale: 1.3, final: true },
     clearLines: [['su', 'Từ Văn Lang đến Huế… nghìn năm lịch sử vẫn nguyên vẹn. Chúng ta đã giữ được tất cả!'], ['au', 'Hoàng hôn trên sông Hương… đẹp nhất trong mười màn luôn!'], ['dong', 'Nghìn năm văn hiến. Bay qua rồi mới thấy hết.'], ['kien', 'Nhiệm vụ hoàn thành, Lạc Hồng. Về nhà thôi.']],
     script(h) {
       const { say, lm } = h;
