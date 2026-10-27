@@ -16,9 +16,11 @@
     "dev": "node tools/build.mjs --watch",
     "build:asia": "node tools/build.mjs --game=asia",
     "dev:asia": "node tools/build.mjs --game=asia --watch",
-    "build:all": "node tools/build.mjs && node tools/build.mjs --game=asia && node tools/build.mjs --game=pandora",
+    "build:all": "node tools/build.mjs && node tools/build.mjs --game=asia && node tools/build.mjs --game=pandora && node tools/build.mjs --game=lachong",
     "build:pandora": "node tools/build.mjs --game=pandora",
-    "dev:pandora": "node tools/build.mjs --game=pandora --watch"
+    "dev:pandora": "node tools/build.mjs --game=pandora --watch",
+    "build:lachong": "node tools/build.mjs --game=lachong",
+    "dev:lachong": "node tools/build.mjs --game=lachong --watch"
   },
   "devDependencies": {
     "esbuild": "^0.25.10",

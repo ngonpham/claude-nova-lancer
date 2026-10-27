@@ -2,6 +2,7 @@
 //   node tools/build.mjs              → minified build of NOVA LANCER (src/)
 //   node tools/build.mjs --game=asia  → minified build of SKYLINE ASIA (asia/src/)
 //   node tools/build.mjs --game=pandora → minified build of PANDORA RIDERS (pandora/src/)
+//   node tools/build.mjs --game=lachong → minified build of LẠC HỒNG (lachong/src/)
 //   add --dev   → unminified build with inline sourcemap (for debugging)
 //   add --watch → dev build, rebuilds on change
 //
@@ -9,6 +10,7 @@
 //   NOVA LANCER   index.html, dist/nova-lancer.html
 //   SKYLINE ASIA  asia/index.html, dist/skyline-asia.html
 //   PANDORA RIDERS pandora/index.html, dist/pandora-riders.html
+//   LẠC HỒNG      lachong/index.html, dist/lac-hong.html
 //   (the dist/ file is the same page without the <html>/<head>/<body> wrapper, for hosting as an Artifact)
 import * as esbuild from 'esbuild';
 import fs from 'node:fs';
@@ -23,6 +25,7 @@ const GAMES = {
   nova: { src: 'src', out: 'index.html', fragment: 'nova-lancer.html', lang: 'ja' },
   asia: { src: path.join('asia', 'src'), out: path.join('asia', 'index.html'), fragment: 'skyline-asia.html', lang: 'vi' },
   pandora: { src: path.join('pandora', 'src'), out: path.join('pandora', 'index.html'), fragment: 'pandora-riders.html', lang: 'vi' },
+  lachong: { src: path.join('lachong', 'src'), out: path.join('lachong', 'index.html'), fragment: 'lac-hong.html', lang: 'vi' },
 };
 const gameArg = (process.argv.find(a => a.startsWith('--game=')) || '--game=nova').slice(7);
 const GAME = GAMES[gameArg];
