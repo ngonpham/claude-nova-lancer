@@ -712,8 +712,8 @@ function buildDecorations(ci) {
     if (g.kind === 'city' && L.lamps) {
       for (let k = Math.ceil(d0 / 30) * 30; k < d0 + CHUNK; k += 30) {
         for (const side of [-1, 1]) {
-          const x = pathX(k) + side * 13;
-          lamps.push({ m: place(x, terrainHeight(x, -k), -k, 0, 1, 1, 1).clone() });
+          const x = pathX(k) + side * 13, y = terrainHeight(x, -k);
+          if (y > 0.5) lamps.push({ m: place(x, y, -k, 0, 1, 1, 1).clone() });
         }
       }
     }

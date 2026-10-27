@@ -2828,7 +2828,7 @@ const SONGS = {
   // over a long brass counter.  Intro(4) -> A B A2 B2 C.  ≈ 64 s loop.
   stage5: {
     bpm: 150, scale: SC.Dmin, intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C'],
-    mix: { lead: 1.1, brass: 0.95, pad: 0.95, bass: 0.9, timp: 1.0, drums: 1.05 },
+    mix: { lead: 1.1, brass: 0.9, pad: 0.9, bass: 0.85, timp: 0.95, drums: 0.92 },
     sections: {
       I: {
         bars: 4, chords: 'Dm Dm C A', pad: 'swell', padVel: 0.8, bass: 'long',
@@ -3083,7 +3083,7 @@ const SONGS = {
         leadInst: 'zither', leadVel: 1.25, counterInst: 'bau', counterVel: 0.6,
         lead:
           'A5:2 Bb5:2 D6:4 E6:4 D6:4 ' +
-          'Bb5:4 A5:2 F5:2 E5:8 ' +
+          'Bb5:4 A5:2 F5:2 D5:8 ' +
           'D5:2 E5:2 F5:4 A5:4 Bb5:4 ' +
           'A5:12 r:4 ' +
           'E6:2 F6:2 E6:2 D6:2 Bb5:4 A5:4 ' +
@@ -3104,7 +3104,7 @@ const SONGS = {
   // Intro(4) -> A B A2 B2 C T.  ≈ 67 s loop.
   stage9: {
     bpm: 172, scale: [7, 9, 10, 0, 2, 3, 5], intro: ['I'], loop: ['A', 'B', 'A2', 'B2', 'C', 'T'],
-    mix: { lead: 1.1, brass: 0.95, bass: 0.9, drums: 1.1, timp: 1.05 },
+    mix: { lead: 1.05, brass: 0.85, pad: 0.85, bass: 0.8, drums: 0.85, timp: 0.9 },
     sections: {
       I: {
         bars: 4, chords: 'Gm Gm Gm D7', pad: 'swell', padVel: 0.8, bass: 'ost16',
@@ -3370,7 +3370,7 @@ const SONGS = {
       T: {
         bars: 4, chords: 'Eb A7b9 Eb A7b9', pad: 'hold', padVel: 0.9, bass: 'ost16 ost16b ost16 ost16b',
         drums: 'fWarC fWar fWar fFill', stab: 'boss1', timp: 'hit1 hit1 hit1 roll', harm: 'oct',
-        lead: 'G6:16 E6:16 Eb6:8 E6:8 C#6:16',
+        lead: 'G6:16 E6:16 Bb5:8 G5:8 E6:16',
       },
     },
   },

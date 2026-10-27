@@ -11,8 +11,10 @@ Game không chiến 3D theo đường ray (kiểu Star Fox) chạy trên trình 
 
 | | |
 | --- | --- |
-| ![Văn Lang](../docs/lachong/vanlang.jpg) | ![Thăng Long thời Lý](../docs/lachong/thanglong.jpg) |
-| ![Bạch Đằng](../docs/lachong/bachdang.jpg) | ![Hội An về đêm](../docs/lachong/hoian.jpg) |
+| ![Nhà sàn Đông Sơn bên sông Hồng, Văn Lang](../docs/lachong/vanlang.jpg) | ![Cổng Đoan Môn, Thăng Long thời Lý](../docs/lachong/thanglong.jpg) |
+| ![Thành Cổ Loa](../docs/lachong/coloa.jpg) | ![Cổng Nam thành Tây Đô trong mưa](../docs/lachong/taydo.jpg) |
+| ![Bãi cọc Bạch Đằng](../docs/lachong/bachdang.jpg) | ![Chùa Cầu Hội An về đêm](../docs/lachong/hoian.jpg) |
+| ![Ngọ Môn, Huế](../docs/lachong/hue.jpg) | |
 
 ## 10 thời kỳ
 
