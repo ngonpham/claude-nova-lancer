@@ -25,7 +25,7 @@ function segDist2(a, b, c) {
 
 // ============================================================ Player lasers
 const lasers = [];
-const LASER_COL = [[0.5, 3.2, 0.9], [0.5, 3.2, 0.9], [0.8, 1.6, 4.5]];
+const LASER_COL = [[3.4, 1.6, 0.35], [3.4, 1.6, 0.35], [3.6, 2.6, 0.9]];   // hỏa châu: dragon fire, then golden pearl fire
 export const WSTATE = { fireCool: 0, holdT: 0, charge: 0, charged: false, lock: null, lockT: 0, chargeLoop: null, bomb: null, lastShot: 0, hitMark: 0, hitKill: false };
 
 function spawnLaser(from, dir, level, inherit) {
@@ -354,11 +354,11 @@ export function resetCharge() {
 // ============================================================ Enemy projectiles
 export const ebullets = [];
 const EB = {
-  orb:    { r: 1.2, dmg: 8, col: [4, 0.6, 1.2] },
-  laser:  { r: 1.0, dmg: 8, col: [4.5, 0.8, 0.5] },
-  big:    { r: 2.4, dmg: 14, col: [5, 1.2, 3] },
-  missile:{ r: 1.6, dmg: 14, col: [4, 2, 0.8] },
-  flak:   { r: 0.8, dmg: 10, col: [4, 3, 1.5] },
+  orb:    { r: 1.2, dmg: 8, col: [3.2, 0.6, 4.4] },     // shadow fire: violet
+  laser:  { r: 1.0, dmg: 8, col: [4.4, 0.6, 2.4] },
+  big:    { r: 2.4, dmg: 14, col: [4.6, 0.8, 4.6] },
+  missile:{ r: 1.6, dmg: 14, col: [3.0, 1.0, 4.0] },
+  flak:   { r: 0.8, dmg: 10, col: [3.6, 1.6, 4.2] },
 };
 
 export function enemyShot(pos, vel, type = 'orb', opts = {}) {

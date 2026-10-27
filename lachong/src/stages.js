@@ -79,7 +79,7 @@ export const STAGES = [
     },
     enemyTint: '#d8ccff',
     boss: { type: 'serpent', model: 'thuongluong', name: 'THUỒNG LUỒNG', sub: 'Thủy quái đầu nguồn bị Thời Ảnh chiếm hồn — giải thoát nó!', hp: 0.9, turretHp: 8, scale: 1 },
-    clearLines: [['su', 'Như Sơn Tinh năm xưa, ta đã đẩy lùi con nước! Văn Lang bình yên rồi.'], ['au', 'Bình minh trên đồi trung du đẹp quá… Em muốn ở lại thêm chút nữa!'], ['kien', 'Làm tốt lắm, Lạc Hồng. Chuẩn bị nhảy thời gian: thế kỷ III trước Công nguyên.']],
+    clearLines: [['su', 'Thuồng luồng được giải thoát, trở về với dòng sông. Như Sơn Tinh năm xưa, ta đã đẩy lùi con nước!'], ['au', 'Bình minh trên đồi trung du đẹp quá… Em muốn ở lại thêm chút nữa!'], ['kien', 'Làm tốt lắm, Lạc Hồng. Chuẩn bị nhảy thời gian: thế kỷ III trước Công nguyên.']],
     script(h) {
       const { say, lm, at } = h;
       say(110, 'kien', 'Đây là Chỉ huy Kiên. Thời Ảnh đang xé rách dòng lịch sử. Phi đội Lạc Hồng — nhảy về Văn Lang, giữ lấy cội nguồn!', { hold: 2.4 });
@@ -97,7 +97,7 @@ export const STAGES = [
       lm('nhasan', 5600, { u: -120, big: false, scale: 2.4 }); lm('nhasan', 5700, { u: 140, big: false, scale: 2.2 });
       lm('thuyenlac', 6900, { u: 70, rotY: Math.PI / 2 }); lm('thuyenlac', 7050, { u: -60, rotY: Math.PI / 2 });
       waves(h, this);
-      say(6950, 'su', 'Truyền thuyết kể Thủy Tinh dâng nước đánh Sơn Tinh, nhưng núi càng dâng cao hơn. Nước đang dâng ở phía trước!', { prio: 1 });
+      say(6950, 'su', 'Truyền thuyết kể Thủy Tinh dâng nước đánh Sơn Tinh, nhưng núi càng dâng cao hơn. Thời Ảnh đã chiếm hồn một con thuồng luồng — nước đang dâng ở phía trước!', { prio: 1 });
     },
   },
 
@@ -123,7 +123,7 @@ export const STAGES = [
     },
     enemyTint: '#d8ccff',
     boss: { type: 'warship', model: 'kimquy', name: 'KIM QUY', sub: 'Rùa vàng giúp dựng thành Cổ Loa, đang bị bóng tối trói buộc', hp: 0.95, turrets: 6 },
-    clearLines: [['su', 'Ba vòng thành vẫn đứng vững. Hàng vạn mũi tên đồng kia sẽ còn nằm đó cho hậu thế tìm thấy.'], ['dong', 'Thành đất mà bền như đá. Người xưa giỏi thật.'], ['kien', 'Lạc Hồng, nhảy tiếp: năm 968, kinh đô Hoa Lư.']],
+    clearLines: [['su', 'Ba vòng thành vẫn đứng vững. Hàng vạn mũi tên đồng kia sẽ còn nằm đó cho hậu thế tìm thấy.'], ['dong', 'Kim Quy bơi về trời rồi. Thành đất mà bền như đá — người xưa giỏi thật.'], ['kien', 'Lạc Hồng, nhảy tiếp: năm 968, kinh đô Hoa Lư.']],
     script(h) {
       const { say, lm } = h;
       say(110, 'kien', 'Âu Lạc, thế kỷ III trước Công nguyên. Thời Ảnh nhắm vào thành Cổ Loa. Bảo vệ thành!', { hold: 2.2 });
@@ -139,7 +139,7 @@ export const STAGES = [
       lm('denthuong', 6500, { u: -200, view: 3500 });
       say(6250, 'su', 'Đền Thượng thờ An Dương Vương. Phía trước đền là Giếng Ngọc — nơi gắn với chuyện Mị Châu – Trọng Thủy.');
       waves(h, this, { turrets: [[3400, -30, 'aagun'], [3450, 30, 'aagun'], [5000, 0, 'turret']] });
-      say(6950, 'dong', 'Một pháo đài bóng tối đang đóng ngay sau đền. Chuẩn bị!', { prio: 1 });
+      say(6950, 'su', 'Kim Quy — rùa vàng giúp An Dương Vương xây thành — đang bị bóng tối trói buộc ngay sau đền! Phải giải thoát ngài!', { prio: 1 });
     },
   },
 
@@ -164,7 +164,7 @@ export const STAGES = [
     },
     enemyTint: '#d8ccff',
     boss: { type: 'core', model: 'lan', name: 'KỲ LÂN', sub: 'Linh thú điềm lành bị Thời Ảnh khống chế', hp: 1.0 },
-    clearLines: [['su', 'Núi đá Hoa Lư vẫn sừng sững như tường thành. Nhà Đinh đã chọn đất thật giỏi.'], ['au', 'Bay luồn giữa những ngọn núi đá… em thích màn này nhất!'], ['kien', 'Tốt lắm. Năm 1010, Lý Công Uẩn sẽ dời đô ra Thăng Long — đến đó ngay.']],
+    clearLines: [['su', 'Kỳ lân được giải thoát — điềm lành trở lại kinh đô Hoa Lư. Nhà Đinh đã chọn đất thật giỏi.'], ['au', 'Bay luồn giữa những ngọn núi đá… em thích màn này nhất!'], ['kien', 'Tốt lắm. Năm 1010, Lý Công Uẩn sẽ dời đô ra Thăng Long — đến đó ngay.']],
     script(h) {
       const { say, lm, at } = h;
       say(110, 'kien', 'Năm 968. Hoa Lư, kinh đô của nước Đại Cồ Việt. Cẩn thận — núi đá dày đặc!', { hold: 2.2 });
@@ -180,7 +180,7 @@ export const STAGES = [
       say(5250, 'su', 'Sử chép vua Lê Đại Hành cho dựng điện Bách Bảo Thiên Tuế, cột dát vàng bạc, làm nơi thiết triều.');
       at(2900, () => h.rescue('au'));
       waves(h, this, { v: 24 });
-      say(6900, 'dong', 'Có một chiến hạm lớn đang neo giữa hai núi đá. Hạ nó!', { prio: 1 });
+      say(6900, 'su', 'Giữa hai núi đá… một con kỳ lân bị bóng tối bao phủ! Lân là điềm lành — đừng để Thời Ảnh giữ nó!', { prio: 1 });
     },
   },
 
@@ -206,7 +206,7 @@ export const STAGES = [
     },
     enemyTint: '#d8ccff',
     boss: { type: 'serpent', model: 'rongly', name: 'RỒNG THĂNG LONG', sub: 'Rồng vàng thời Lý bị bóng tối nuốt chửng', hp: 1.05, turretHp: 10, scale: 1.1 },
-    clearLines: [['su', 'Hồ Tây lặng sóng. Kinh thành Thăng Long sẽ đứng vững hơn nghìn năm nữa.'], ['dong', 'Rồng thật thì bay lên. Rồng giả thì phải nằm xuống.'], ['kien', 'Tiếp theo: thời Trần, năm 1288. Chuẩn bị cho một trận thủy chiến.']],
+    clearLines: [['su', 'Hồ Tây lặng sóng. Kinh thành Thăng Long sẽ đứng vững hơn nghìn năm nữa.'], ['dong', 'Rồng vàng bay lên rồi. Đúng là Thăng Long.'], ['kien', 'Tiếp theo: thời Trần, năm 1288. Chuẩn bị cho một trận thủy chiến.']],
     script(h) {
       const { say, lm } = h;
       say(110, 'kien', 'Năm 1010. Kinh đô vừa dời về Thăng Long. Thời Ảnh muốn xóa nó khỏi bản đồ!', { hold: 2.2 });
@@ -222,7 +222,7 @@ export const STAGES = [
       lm('vanmieu', 5600, { u: -220, view: 3500 });
       say(5450, 'su', 'Văn Miếu dựng năm 1070. Năm 1076 nhà Lý lập Quốc Tử Giám — trường đại học đầu tiên của nước ta.');
       waves(h, this, { turrets: [[2900, -30, 'aagun'], [2950, 30, 'aagun'], [5200, 0, 'turret']] });
-      h.say(7000, 'au', 'Mặt Hồ Tây đang sủi bọt… Có gì đó rất lớn bên dưới!', { prio: 1 });
+      h.say(7000, 'su', 'Rồng vàng của Thăng Long… bị bóng tối nuốt chửng dưới đáy Hồ Tây! Giải thoát nó!', { prio: 1 });
     },
   },
 
@@ -248,7 +248,7 @@ export const STAGES = [
     },
     enemyTint: '#d8ccff',
     boss: { type: 'warship', model: 'kinhngu', name: 'KÌNH NGƯ', sub: 'Cá Ông — thần hộ biển — bị kéo vào con nước đen', hp: 1.1, turrets: 7 },
-    clearLines: [['su', 'Con nước đã rút, quái vật mắc cạn giữa bãi cọc — y như năm 1288!'], ['dong', 'Thắng nhờ hiểu đất, hiểu nước. Bài học ấy không bao giờ cũ.'], ['kien', 'Lạc Hồng, nhảy tới năm 1397: thành đá Tây Đô của nhà Hồ.']],
+    clearLines: [['su', 'Cá Ông đã trở về biển. Người miền biển vẫn lập lăng thờ cá Ông như vị thần cứu nạn.'], ['dong', 'Thắng nhờ hiểu đất, hiểu nước. Bài học ấy không bao giờ cũ.'], ['kien', 'Lạc Hồng, nhảy tới năm 1397: thành đá Tây Đô của nhà Hồ.']],
     script(h) {
       const { say, lm } = h;
       say(110, 'kien', 'Đời Trần. Thời Ảnh đang tụ quân ở cửa sông Bạch Đằng. Bay từ Thiên Trường ra biển!', { hold: 2.2 });
@@ -264,7 +264,7 @@ export const STAGES = [
       say(4950, 'dong', 'Bãi cọc ngay dưới chân. Bay thấp mà luồn cho khéo!');
       lm('baicoc', 6200, { u: 0, seed: 9, w: 300 });
       waves(h, this);
-      say(7050, 'su', 'Triều đang dâng… Một thứ gì đó đang theo con nước tiến vào cửa sông!', { prio: 1 });
+      say(7050, 'su', 'Triều đang dâng… Đó là Kình ngư — cá Ông, thần hộ biển — nhưng mắt nó đỏ rực bóng tối!', { prio: 1 });
     },
   },
 
@@ -290,7 +290,7 @@ export const STAGES = [
     },
     enemyTint: '#d8ccff',
     boss: { type: 'core', model: 'nghe', name: 'NGHÊ ĐÁ', sub: 'Linh thú canh giữ cổng thành Tây Đô bị hóa đá đen', hp: 1.1 },
-    clearLines: [['su', 'Sáu trăm năm sau, những khối đá ấy vẫn khít đến mức không lọt lưỡi dao. Di sản thế giới đấy!'], ['dong', 'Mưa tạnh rồi. Trời Thanh Hóa sáng lên đẹp lắm.'], ['kien', 'Tiếp theo: thời Lê sơ, triều đại của Lê Lợi và Lê Thánh Tông.']],
+    clearLines: [['su', 'Sáu trăm năm sau, những khối đá ấy vẫn khít đến mức không lọt lưỡi dao. Di sản thế giới đấy!'], ['dong', 'Nghê đá lại về canh cổng. Mưa tạnh rồi, trời Thanh Hóa sáng lên đẹp lắm.'], ['kien', 'Tiếp theo: thời Lê sơ, triều đại của Lê Lợi và Lê Thánh Tông.']],
     script(h) {
       const { say, lm, at } = h;
       say(110, 'kien', 'Năm 1397, Thanh Hóa. Kinh thành Tây Đô của nhà Hồ. Mưa lớn — chú ý tầm nhìn!', { hold: 2.2 });
@@ -303,7 +303,7 @@ export const STAGES = [
       say(5600, 'su', 'Năm 2011, Thành nhà Hồ được UNESCO công nhận là Di sản Văn hóa Thế giới.');
       at(2600, () => h.rescue('dong'));
       waves(h, this, { turrets: [[4000, -30, 'aagun'], [4050, 30, 'aagun'], [4900, 0, 'turret'], [5300, 24, 'aagun']] });
-      say(6950, 'au', 'Có tín hiệu năng lượng cực mạnh dưới chân núi!', { prio: 1 });
+      say(6950, 'su', 'Con nghê đá canh cổng thành đang sống dậy… nhưng toàn thân nó là bóng tối!', { prio: 1 });
     },
   },
 
@@ -347,7 +347,7 @@ export const STAGES = [
       say(5550, 'su', 'Năm 1484, Lê Thánh Tông cho dựng bia tiến sĩ ở Văn Miếu, ghi tên người đỗ đạt để khuyến khích việc học.');
       say(6300, 'su', 'Thời Hồng Đức còn có Bộ luật Hồng Đức và tập bản đồ Hồng Đức — bản đồ toàn quốc đầu tiên.');
       waves(h, this, { turrets: [[3100, -28, 'aagun'], [3150, 28, 'aagun'], [5000, 0, 'turret'], [6400, -20, 'aagun']] });
-      say(6950, 'dong', 'Chiến hạm lớn trên kinh thành! Đội hình tấn công!', { prio: 1 });
+      say(6950, 'su', 'Phượng hoàng của điện Kính Thiên… ngọn lửa thiêng của nó đã bị bóng tối dập tắt!', { prio: 1 });
     },
   },
 
@@ -373,7 +373,7 @@ export const STAGES = [
     },
     enemyTint: '#e0d0ff',
     boss: { type: 'warship', model: 'cachep', name: 'CÁ CHÉP HÓA RỒNG', sub: 'Cá chép vượt Vũ Môn bị bóng tối giam giữa cửa biển', hp: 1.2, turrets: 7 },
-    clearLines: [['su', 'Đèn lồng vẫn sáng khắp phố. Hội An được UNESCO công nhận là Di sản thế giới năm 1999 đấy.'], ['au', 'Lần sau đến đây em phải đi bộ qua chùa Cầu mới được!'], ['kien', 'Lạc Hồng, nhảy tới cuối thế kỷ XVIII: thời Tây Sơn.']],
+    clearLines: [['su', 'Đèn lồng vẫn sáng khắp phố. Hội An được UNESCO công nhận là Di sản thế giới năm 1999 đấy.'], ['au', 'Cá chép hóa rồng rồi kìa! Lần sau đến đây em phải đi bộ qua chùa Cầu mới được!'], ['kien', 'Lạc Hồng, nhảy tới cuối thế kỷ XVIII: thời Tây Sơn.']],
     script(h) {
       const { say, lm, at } = h;
       say(110, 'kien', 'Thế kỷ XVII. Các thương cảng đang đông vui nhất. Thời Ảnh định đốt rụi chúng!', { hold: 2.2 });
@@ -391,7 +391,7 @@ export const STAGES = [
       lm('chauan', 5600, { u: 90 }); lm('galleon', 6100, { u: -100 });
       at(3000, () => h.rescue('su'));
       waves(h, this, { v: 20 });
-      say(6950, 'dong', 'Một con thuyền đen như mực đang lừng lững tiến vào cửa biển!', { prio: 1 });
+      say(6950, 'su', 'Một con cá chép khổng lồ — đúng lúc sắp hóa rồng — bị bóng tối giam giữa cửa biển!', { prio: 1 });
     },
   },
 
@@ -435,7 +435,7 @@ export const STAGES = [
       lm('dongda', 6000, { u: 190, view: 3500 });
       say(5850, 'su', 'Mùng 5 Tết Kỷ Dậu năm 1789, Quang Trung đại thắng ở Ngọc Hồi – Đống Đa, giải phóng Thăng Long.');
       waves(h, this, { v: 22 });
-      say(6950, 'dong', 'Một pháo đài bóng tối chắn ngay cửa ngõ Thăng Long. Mở đường!', { prio: 1 });
+      say(6950, 'dong', 'Voi chiến Tây Sơn… bị Thời Ảnh điều khiển, đang chắn cửa ngõ Thăng Long. Mở đường!', { prio: 1 });
     },
   },
 

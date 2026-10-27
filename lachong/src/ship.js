@@ -6,6 +6,7 @@ import { railFrame, groundHeight } from './world.js';
 import { FX, Trail, glow, sparks, splash, addShake, speedLines, explode } from './fx.js';
 import { patchFog, TEX, POST } from './gfx.js';
 import { AudioSys } from './audio.js';
+import { buildMount } from './mounts.js';
 
 // ============================================================ Geometry helpers
 function sect(w, h, yOff = 0, belly = 1) {
@@ -227,6 +228,18 @@ export function buildShipModel(schemeName = 'player') {
   };
 }
 
+// Small flames from a mount's fire points (the iron horse's nostrils and mane, the phoenix's plumes)
+const _fp = new THREE.Vector3();
+export function mountFire(model, quat, pos, dt, k = 1, scale = 1) {
+  model.fireAcc = (model.fireAcc || 0) + dt * 30 * k;
+  while (model.fireAcc >= 1) {
+    model.fireAcc -= 1;
+    const p = model.fireTips[(Math.random() * model.fireTips.length) | 0];
+    _fp.copy(p).multiplyScalar(scale).applyQuaternion(quat).add(pos);
+    FX.add.spawn(_fp.x, _fp.y, _fp.z, rand(-1, 1), rand(1, 3), rand(2, 6), rand(0.2, 0.35), 0.9, 0.2, [3.2, 1.3, 0.3, 1], [1.2, 0.2, 0.0, 0], 1, {});
+  }
+}
+
 // ============================================================ Shield bubble
 function makeShield() {
   const mat = new THREE.ShaderMaterial({
@@ -255,7 +268,7 @@ export const LIMITS = { u: 46, vMin: 2.6, vMax: 58 };
 
 export class PlayerShip {
   constructor() {
-    this.model = buildShipModel('player');
+    this.model = buildMount('rong', 'player');   // Lạc Hồng 1 rides the Lý dragon
     this.root = new THREE.Group();
     this.pivot = new THREE.Group();
     this.root.add(this.pivot);
@@ -515,20 +528,21 @@ export class PlayerShip {
       f.material.uniforms.uTime.value = t;
       f.material.uniforms.uPower.value = power;
     }
+    this.model.animate(t, dt, { speed: this.speedMul, boost: this.boostAmt, brake: this.brakeAmt, bank: this.bank, climb: clamp(this.vv / 36, -1, 1) });
     if (!this.model.group.visible) return;
-    // nozzle glows & wingtip trails
-    const gc = this.model.scheme.glow;
+    if (this.model.fireTips) mountFire(this.model, this.quat, this.pos, dt, 1 + this.boostAmt);
+    // nozzle glows (machines only) & wingtip trails
     for (let i = 0; i < 2; i++) {
       _v.copy(this.model.nozzles[i]).applyQuaternion(this.quat).add(this.pos);
-      glow(_v, 1.0 + this.boostAmt * 1.4, 0.3 * power, 0.7 * power, 1.3 * power, 0.7);
+      if (!this.model.noEngine) glow(_v, 1.0 + this.boostAmt * 1.4, 0.3 * power, 0.7 * power, 1.3 * power, 0.7);
       this.trails[2 + i].push(_v);
-      this.trails[2 + i].intensity = this.boostAmt;
+      this.trails[2 + i].intensity = this.model.noEngine ? this.boostAmt * 0.5 : this.boostAmt;
       _v2.copy(this.model.tips[i]).applyQuaternion(this.quat).add(this.pos);
       this.trails[i].push(_v2);
       this.trails[i].intensity = clamp(Math.abs(this.vu) / 50 + this.boostAmt * 0.8 + Math.abs(this.tilt) * 0.6 + (this.rollT > 0 ? 1 : 0), 0, 1);
     }
     // navigation lights
-    const blinkOn = (t % 1.2) < 0.08;
+    const blinkOn = !this.model.noEngine && (t % 1.2) < 0.08;
     if (blinkOn) {
       _v.copy(this.model.tips[0]).applyQuaternion(this.quat).add(this.pos); glow(_v, 0.7, 1.6, 0.15, 0.15, 1);
       _v.copy(this.model.tips[1]).applyQuaternion(this.quat).add(this.pos); glow(_v, 0.7, 0.15, 1.6, 0.3, 1);

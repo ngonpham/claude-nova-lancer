@@ -47,7 +47,7 @@ function mine(s, u, v) { return spawnEnemy('mine', 'fixed', { s, u, v, bob: 3, p
 // Gunship crossing overhead, carrying a bomb
 function gunship() {
   spawnEnemy('gunship', 'flyby', { s: D() + 900, dist: 260, enter: 4, close: 3, u0: 80, su: -8, v: 40, life: 20 }, { carry: 'bomb' });
-  radio('dong', 'Tàu bóng tối cỡ lớn! Tập trung hỏa lực, tránh loạt pháo!', { prio: 1 });
+  radio('dong', 'Ảnh thú khổng lồ! Tập trung hỏa lực, tránh loạt đạn!', { prio: 1 });
   if (STAGE?.id <= 2) tip(`Tàu lớn: dùng bom thông minh ${'<kbd>K</kbd>'} / ${'<kbd>B</kbd>'}`, 5, 'Tàu lớn: dùng BOMB');
 }
 
@@ -110,7 +110,7 @@ function buildScript(stage) {
   // ---- boss approach (shared by all stages)
   const B = stage.bossAt;
   at(B - 210, () => {
-    radio('kien', stage.final ? 'Kỳ hạm của Thời Ảnh đang xé toạc bầu trời Huế! Toàn phi đội, chuẩn bị!' : 'Cảnh báo! Một khối bóng tối cực lớn ngay phía trước!', { prio: 2, hold: 1.4 });
+    radio('kien', stage.final ? 'Kỳ hạm của Thời Ảnh đang xé toạc bầu trời Huế! Toàn phi đội, chuẩn bị!' : 'Cảnh báo! Một linh vật bị bóng tối chiếm giữ ngay phía trước!', { prio: 2, hold: 1.4 });
     warning(true); AudioSys.stopMusic(1.2); G.warnLoop = AudioSys.loop('siren');
   });
   at(B - 40, () => { G.run.checkpoint = B - 40; });
@@ -125,18 +125,18 @@ export function initLevel() {
   hooked = true;
   const BOSS_LINES = {
     serpent: {
-      1: ['su', 'Mục tiêu: {name}! Phá các tháp pháo trên lưng nó trước!'],
-      2: ['su', 'Tháp pháo đã sạch! Nhắm vào lõi trong miệng khi nó há ra!'],
+      1: ['su', '{name}! Phá các khối bóng tối bám trên lưng nó trước!'],
+      2: ['su', 'Bóng tối trên lưng đã vỡ! Nhắm vào ngọn lửa đen trong miệng khi nó há ra!'],
       3: ['thoianh', '…LỊCH SỬ… CHỈ LÀ… CÁT BỤI…'],
     },
     warship: {
-      1: ['su', 'Chiến hạm {name}! Hạ các tháp pháo trên boong!'],
-      2: ['su', 'Cửa hầm dưới bụng đã mở — lõi năng lượng lộ ra! Bắn vào đó!'],
+      1: ['su', '{name}! Những khối bóng tối trên lưng đang khai hỏa — phá chúng trước!'],
+      2: ['su', 'Lõi bóng tối đã lộ ra! Bắn vào đó để giải thoát nó!'],
       3: ['thoianh', 'KHÔNG THỂ CHẤP NHẬN… XÓA BỎ TOÀN BỘ DÒNG THỜI GIAN.'],
     },
     core: {
-      1: ['su', '{name}! Phá các tấm khiên xoay quanh lõi trước!'],
-      2: ['su', 'Khiên đã vỡ! Lõi mở ra rồi — dồn hỏa lực vào con mắt!'],
+      1: ['su', '{name}! Phá vòng giáp bóng tối đang xoay quanh nó!'],
+      2: ['su', 'Vòng giáp vỡ rồi! Lõi bóng tối lộ ra — dồn hỏa lực!'],
       3: ['thoianh', 'MẮT… CỦA… THỜI ẢNH… THẤY… MỌI… KẾT THÚC…'],
     },
   };
@@ -149,7 +149,10 @@ export function initLevel() {
   });
   let firstCharge = true;
   on('bossCharge', () => { if (firstCharge) { firstCharge = false; radio('dong', 'Tia năng lượng! Né khỏi đường bắn!', { prio: 2, hold: 1 }); } });
-  on('bossDying', () => radio('thoianh', STAGE?.final ? 'KHÔNG… NGHÌN NĂM… KHÔNG THỂ… XÓA…' : 'BÓNG… TAN… VÀO… DÒNG… THỜI… GIAN…', { prio: 2, hold: 0.8 }));
+  on('bossDying', () => {
+    if (STAGE?.final) radio('thoianh', 'KHÔNG… NGHÌN NĂM… KHÔNG THỂ… XÓA…', { prio: 2, hold: 0.8 });
+    else radio('su', 'Bóng tối đã tan! ' + (STAGE?.boss.name || 'Linh vật') + ' được giải thoát rồi!', { prio: 2, hold: 0.8 });
+  });
 }
 
 export function setLevelStage(stage) {

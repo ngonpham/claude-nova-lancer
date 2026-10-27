@@ -411,7 +411,7 @@ export function updateHUD(dt, rdt) {
   }
   if (run.goldRings !== lastGold) { [...EL.gold.children].forEach((i, k) => i.classList.toggle('on', k < run.goldRings)); lastGold = run.goldRings; }
   if (run.laser !== lastLaser) {
-    EL.laserlv.textContent = ['LASER · SINGLE', 'LASER · TWIN', 'LASER · HYPER'][run.laser];
+    EL.laserlv.textContent = ['HỎA CHÂU · ĐƠN', 'HỎA CHÂU · ĐÔI', 'HỎA CHÂU · THẦN'][run.laser];
     EL.laserlv.classList.toggle('hyper', run.laser === 2);
     lastLaser = run.laser;
   }

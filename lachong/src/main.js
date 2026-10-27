@@ -187,9 +187,9 @@ function wireEvents() {
     if (kind === 'laser') {
       run.laser = Math.min(2, run.laser + 1);
       AudioSys.sfx('powerUp');
-      tip(run.laser === 2 ? 'LASER SIÊU CẤP!' : 'LASER ĐÔI!', 2.5);
-      radio('su', run.laser === 2 ? 'Laser siêu cấp! Hỏa lực tăng mạnh!' : 'Laser đôi! Dễ đánh hơn rồi đấy!', { prio: 1 });
-    } else if (kind === 'bomb') { run.bombs = Math.min(9, run.bombs + 1); AudioSys.sfx('item'); tip('Bom thông minh +1', 2); }
+      tip(run.laser === 2 ? 'HỎA CHÂU THẦN!' : 'HỎA CHÂU ĐÔI!', 2.5);
+      radio('su', run.laser === 2 ? 'Hỏa châu thần! Ngọc rồng sáng rực rồi!' : 'Hỏa châu đôi! Rồng phun hai luồng cùng lúc!', { prio: 1 });
+    } else if (kind === 'bomb') { run.bombs = Math.min(9, run.bombs + 1); AudioSys.sfx('item'); tip('Sấm sét +1', 2); }
     else { run.shield = Math.min(run.maxShield, run.shield + 40); AudioSys.sfx('shieldUp'); }
   });
   on('dropItem', (kind, pos, s, u, v) => {
@@ -393,7 +393,7 @@ function startBoss() {
   sortieAll(1.8, 8);
   S.bossCine = { t: 0 };
   POST.letterbox = 1;
-  radio('thoianh', st.final ? 'LẠC HỒNG… CÁC NGƯƠI ĐUỔI THEO TA QUA NGHÌN NĂM. TẠI ĐÂY, TẤT CẢ SẼ CHẤM DỨT.' : `…KẺ GIỮ SỬ ĐÃ ĐẾN. ${st.boss.name} — XÓA SỔ CHÚNG.`, { prio: 2, hold: 1.2 });
+  radio('thoianh', st.final ? 'LẠC HỒNG… CÁC NGƯƠI ĐUỔI THEO TA QUA NGHÌN NĂM. TẠI ĐÂY, TẤT CẢ SẼ CHẤM DỨT.' : `…${st.boss.name} GIỜ LÀ CỦA TA. HÃY XÉ XÁC CHÚNG.`, { prio: 2, hold: 1.2 });
   after(3.2, () => { banner('WARNING', st.boss.name, st.boss.sub, 3, 'boss'); });
   after(6.2, () => bossBar(true));
 }
@@ -408,7 +408,7 @@ function startClear() {
   AudioSys.playMusic('clear', { fade: 0.6 });
   hudVisible(true);
   const st = G.stage;
-  after(1.2, () => banner(st.city, 'ĐÃ BẢO VỆ', 'MISSION COMPLETE', 5, 'gold'));
+  after(1.2, () => banner(st.boss.name, 'ĐÃ GIẢI THOÁT', 'MISSION COMPLETE', 5, 'gold'));
   st.clearLines.forEach(([who, text], i) => {
     if (G.run.lost?.[who]) return;
     after(1.4 + i * 0.1, () => radio(who, text, { prio: i === 0 ? 2 : 0, hold: who === 'kien' || who === 'su' ? 2.4 : 1.6 }));

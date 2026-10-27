@@ -4,7 +4,11 @@ import * as THREE from 'three';
 import { G, rand, clamp, lerp, damp, TAU, emit, on, after } from './core.js';
 import { railFrame, railToWorld, groundHeight, kindW, cityW } from './world.js';
 import { FX, Trail, glow, beam, sparks, explode } from './fx.js';
-import { buildShipModel, CAM } from './ship.js';
+import { CAM, mountFire } from './ship.js';
+import { buildMount } from './mounts.js';
+
+// Each wingman rides a linh vật: Âu the phoenix, Đồng Thánh Gióng's iron horse, Sử the Đông Sơn Lạc bird.
+const MOUNT_OF = { au: 'phuong', dong: 'ngua', su: 'chimlac' };
 import { enemies } from './enemies.js';
 import { AudioSys } from './audio.js';
 
@@ -31,7 +35,7 @@ const PASS_LO = -44, PASS_HI = 24;   // rail distance band (relative to the lead
 export class Wingman {
   constructor(id) {
     this.id = id;
-    this.model = buildShipModel(id);
+    this.model = buildMount(MOUNT_OF[id] || 'chimlac', id);
     this.root = new THREE.Group();
     this.root.add(this.model.group);
     this.model.group.scale.setScalar(0.95);
@@ -116,12 +120,14 @@ export class Wingman {
     // engines + trails
     for (let i = 0; i < 2; i++) {
       _v.copy(this.model.nozzles[i]).multiplyScalar(0.95).applyQuaternion(this.root.quaternion).add(this.pos);
-      glow(_v, 1.0, 0.4, 0.7, 1.1, 0.7);
+      if (!this.model.noEngine) glow(_v, 1.0, 0.4, 0.7, 1.1, 0.7);
       _v2.copy(this.model.tips[i]).multiplyScalar(0.95).applyQuaternion(this.root.quaternion).add(this.pos);
       this.trails[i].push(_v2);
       this.trails[i].intensity = clamp(Math.abs(this.vu) / 50 + 0.15, 0, 1);
     }
     for (const f of this.model.flames) { f.material.uniforms.uTime.value = G.time; f.material.uniforms.uPower.value = 0.8; f.scale.z = 1.8; }
+    this.model.animate(G.time, dt, { speed: 1 + clamp(this.vs / 80, -0.4, 0.8), bank: this.bank, climb: clamp(this.vv / 45, -1, 1) });
+    if (this.model.fireTips && this.root.visible) mountFire(this.model, this.root.quaternion, this.pos, dt, 0.7, 0.95);
     if (this.damaged) {
       this.smoke -= dt;
       if (this.smoke <= 0) { this.smoke = 0.06; FX.smoke.spawn(this.pos.x, this.pos.y, this.pos.z, rand(-1, 1), rand(1, 3), rand(3, 7), 1.2, 1, 4, [0.15, 0.15, 0.16, 0.6], [0.3, 0.3, 0.32, 0], 1, { fadeIn: 0.05 }); }
