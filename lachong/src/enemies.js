@@ -1,8 +1,11 @@
-// Enemies: procedural models, rail-space movement patterns, firing behaviours and the enemy manager.
+// Enemies: THỜI ẢNH's shadow beasts (ảnh thú) — procedural models, rail-space movement patterns,
+// firing behaviours and the enemy manager. Every beast is ink-black shadow laced with glowing violet
+// seams; wings, tails and wisps are animated in the vertex shader (one draw call per beast).
 import * as THREE from 'three';
 import { G, rand, clamp, lerp, damp, TAU, emit, diff, easeOutCubic, easeInOutCubic, after } from './core.js';
-import { railFrame, railToWorld, groundHeight, emissiveVertexMaterial, mergeGeometries } from './world.js';
-import { FX, explode, glow, sparks, addShake } from './fx.js';
+import { railFrame, railToWorld, groundHeight, mergeGeometries } from './world.js';
+import { FX, glow, sparks, addShake, splash } from './fx.js';
+import { patchFog, flashLight } from './gfx.js';
 import { TARGETS, enemyShot, aimAtPlayer } from './weapons.js';
 import { AudioSys } from './audio.js';
 import { loft, slab, fin, mirrorX } from './ship.js';
@@ -22,111 +25,395 @@ export function paint(g0, hex, em = 0) {
 }
 export const diamond = (w, h, y = 0) => [[w, y], [0, y + h], [-w, y], [0, y - h]];
 const hexSect = (w, h, y = 0) => [[w, y], [w * 0.5, y + h], [-w * 0.5, y + h], [-w, y], [-w * 0.5, y - h], [w * 0.5, y - h]];
-const sym = (g, hex, em = 0) => [paint(g, hex, em), paint(mirrorX(g), hex, em)];
 
-function modelDart() {
-  const body = loft([{ z: -3.3, pts: diamond(0.06, 0.06) }, { z: -1.8, pts: diamond(0.5, 0.38) }, { z: 0.8, pts: diamond(0.75, 0.55) }, { z: 2.3, pts: diamond(0.36, 0.3) }]);
-  const wing = slab([[0.4, 1.2], [3.5, -0.5], [3.7, -1.1], [0.5, 2.1 - 4.1]], 0.14);
-  const tail = fin([[0, 0], [1.2, 0], [1.5, 0.95], [0.9, 1.05]], 0.1).translate(0, 0.3, 0.7);
+// Beast paint: paint() plus an aAnim attribute (x = wing-flap weight, y = tail/wisp sway weight).
+function bp(g, hex, em = 0, anim = null) {
+  const out = paint(g, hex, em);
+  const p = out.attributes.position, n = p.count;
+  const a = new Float32Array(n * 2);
+  if (anim) for (let i = 0; i < n; i++) { const r = anim(p.getX(i), p.getY(i), p.getZ(i)); a[i * 2] = r[0]; a[i * 2 + 1] = r[1]; }
+  out.setAttribute('aAnim', new THREE.BufferAttribute(a, 2));
+  return out;
+}
+const bsym = (g, hex, em = 0, anim = null) => [bp(g, hex, em, anim), bp(mirrorX(g), hex, em, anim)];
+const flapW = (root, span) => (x) => [clamp((Math.abs(x) - root) / span, 0, 1), 0];
+const swayZ = (z0, len, k = 1) => (x, y, z) => [0, clamp((z - z0) / len, 0, 1) * k];
+const swayY = (y0, len, k = 1) => (x, y) => [0, clamp((y0 - y) / len, 0, 1) * k];
+const ell = (rx, ry, rz, x, y, z, ws = 8, hs = 6) => new THREE.SphereGeometry(1, ws, hs).scale(rx, ry, rz).translate(x, y, z);
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _qq = new THREE.Quaternion();
+// Cone from base point a to apex b
+function spike(a, b, r, seg = 5) {
+  _a.set(...a); _b.set(...b);
+  const d = _b.clone().sub(_a), len = d.length();
+  const g = new THREE.ConeGeometry(r, len, seg).translate(0, len / 2, 0);
+  g.applyQuaternion(_qq.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
+  return g.translate(_a.x, _a.y, _a.z);
+}
+// Thin glowing seam/bone between two points
+function bone(a, b, w = 0.08) {
+  _a.set(...a); _b.set(...b);
+  const d = _b.clone().sub(_a), len = d.length();
+  const g = new THREE.BoxGeometry(w, w, len);
+  g.applyQuaternion(_qq.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d.normalize()));
+  return g.translate((_a.x + _b.x) / 2, (_a.y + _b.y) / 2, (_a.z + _b.z) / 2);
+}
+// Wing polygon in slab space ([x, forward]) → bone endpoints in model space
+const wp = (p, y = 0) => [p[0], y, -p[1]];
+
+// Palette
+const INK = '#110d17', INK2 = '#1b1324', MEMB = '#221730', VIO = '#b46bff', VIO2 = '#7c3fd6', EYE = '#ff2e8a', WISP = '#6a32b8';
+const STONE = '#a29ca8', STONE2 = '#7c7684';
+
+// Trailing shadow wisp (cone pointing back along +Z), swaying more toward its tip
+function wisp(x, y, z, len, r, k = 1, dy = 0) {
+  return bp(spike([x, y, z], [x * 1.25, y + dy, z + len], r, 4), WISP, 0.35, swayZ(z, len, k));
+}
+
+// ---- quạ bóng (dart): shadow crow with ragged, fingered wings
+function modelCrow() {
+  const wing = slab([[0.35, 0.75], [1.6, 0.85], [3.0, 0.3], [3.9, -0.35], [3.35, -0.75], [3.5, -1.15], [2.9, -1.0], [2.85, -1.6], [2.3, -1.2], [2.05, -1.8], [1.55, -1.3], [1.1, -1.75], [0.7, -1.2], [0.35, -1.1]], 0.1).translate(0, 0.12, 0);
+  const tail = slab([[0.22, -1.2], [1.0, -3.05], [0.55, -2.85], [0.3, -3.3], [0, -2.95], [-0.3, -3.3], [-0.55, -2.85], [-1.0, -3.05], [-0.22, -1.2]], 0.09).translate(0, 0.05, 0);
+  const F = flapW(0.3, 3.6);
   return mergeGeometries([
-    paint(body, '#3b3448'), ...sym(wing, '#b8243f'), paint(tail, '#b8243f'),
-    paint(new THREE.OctahedronGeometry(0.34, 0).scale(1, 0.8, 1.6).translate(0, 0.28, -1.5), '#ff2d7a', 1),
-    paint(new THREE.BoxGeometry(0.55, 0.32, 0.2).translate(0, 0, 2.35), '#ff8a2a', 1),
+    bp(ell(0.55, 0.5, 1.45, 0, 0, 0.15), INK),
+    bp(ell(0.46, 0.44, 0.55, 0, 0.2, -1.5), INK),
+    bp(spike([0, 0.14, -1.9], [0, 0.02, -3.05], 0.2, 4), INK2),
+    bp(spike([0, 0.36, -1.15], [0, 0.66, 0.2], 0.14, 3), INK2), // ruffled crest
+    ...[-1, 1].map(s => bp(ell(0.12, 0.09, 0.1, s * 0.31, 0.32, -1.82), EYE, 1)),
+    ...bsym(wing, MEMB, 0, F),
+    ...bsym(bone(wp([0.35, 0.75], 0.2), wp([3.0, 0.3], 0.2), 0.09), VIO, 1, F),
+    ...bsym(bone(wp([1.6, 0.85], 0.19), wp([2.85, -1.6], 0.19), 0.06), VIO2, 1, F),
+    bp(tail, MEMB),
+    wisp(0.3, 0.05, 2.6, 2.6, 0.15, 1.2), wisp(-0.3, 0.05, 2.6, 2.6, 0.15, 1.2), wisp(0, 0.15, 2.8, 3.2, 0.12, 1.4, 0.3),
   ]);
 }
 
-function modelInterceptor() {
-  const body = loft([{ z: -4.0, pts: diamond(0.05, 0.05) }, { z: -2.0, pts: diamond(0.42, 0.34) }, { z: 1.0, pts: diamond(0.62, 0.45) }, { z: 2.6, pts: diamond(0.3, 0.25) }]);
-  const wing = slab([[0.4, 0.2], [3.0, -2.0], [3.1, -2.5], [0.4, -2.3]], 0.12);
-  const can = slab([[0.3, 2.4], [1.3, 1.8], [1.3, 1.6], [0.3, 1.7]], 0.08);
+// ---- dơi bóng (interceptor): shadow bat with membrane wings on glowing finger bones
+function modelBat() {
+  const W = [[0.3, 0.45], [1.55, 1.05], [3.3, -0.1], [2.85, -0.6], [2.55, -1.85], [2.05, -1.15], [1.45, -2.25], [1.05, -1.35], [0.3, -1.05]];
+  const wing = slab(W, 0.06).translate(0, 0.1, 0);
+  const F = flapW(0.25, 3.1);
+  const wrist = wp(W[1], 0.15);
   return mergeGeometries([
-    paint(body, '#d9dbe2'), ...sym(wing, '#c42a36'), ...sym(can, '#2a2d38'),
-    paint(new THREE.OctahedronGeometry(0.3, 0).scale(1, 0.8, 1.8).translate(0, 0.26, -1.7), '#ff3030', 1),
-    paint(new THREE.BoxGeometry(0.5, 0.3, 0.2).translate(0, 0, 2.65), '#ff6a3a', 1),
+    bp(ell(0.48, 0.44, 1.05, 0, 0, 0.15), INK),
+    bp(ell(0.42, 0.4, 0.44, 0, 0.14, -1.0), INK),
+    bp(spike([0, 0.06, -1.3], [0, -0.04, -1.85], 0.18, 4), INK2),
+    ...[-1, 1].map(s => bp(spike([s * 0.24, 0.42, -1.0], [s * 0.55, 1.35, -0.85], 0.18, 4), INK2)),
+    ...[-1, 1].map(s => bp(ell(0.11, 0.08, 0.08, s * 0.19, 0.26, -1.36), EYE, 1)),
+    ...[-1, 1].map(s => bp(spike([s * 0.1, -0.12, -1.45], [s * 0.1, -0.42, -1.5], 0.04, 3), '#e9d6ff', 0.6)),
+    ...bsym(wing, MEMB, 0, F),
+    ...bsym(bone(wp(W[0], 0.15), wrist, 0.1), VIO, 1, F),
+    ...[W[2], W[4], W[6]].flatMap(t => bsym(bone(wrist, wp(t, 0.15), 0.07), VIO, 1, F)),
+    ...[-1, 1].map(s => bp(spike([s * 0.2, -0.2, 1.0], [s * 0.35, -0.5, 1.6], 0.09, 3), INK2)),
+    wisp(0.2, 0, 1.15, 2.4, 0.13, 1.2), wisp(-0.2, 0, 1.15, 2.4, 0.13, 1.2),
   ]);
 }
 
-function modelRaptor() {
-  const pod = loft([{ z: -3.6, pts: hexSect(0.1, 0.1) }, { z: -2.2, pts: hexSect(0.8, 0.55) }, { z: 1.0, pts: hexSect(1.0, 0.7) }, { z: 2.6, pts: hexSect(0.6, 0.45) }]);
-  const boom = new THREE.BoxGeometry(0.7, 0.7, 5.8).translate(2.3, -0.1, 0.8);
-  const wing = slab([[0.8, 0.6], [4.4, -0.8], [4.4, -1.8], [0.8, -1.6]], 0.2);
-  const tfin = fin([[0, 0], [1.4, 0], [1.7, 1.3], [1.1, 1.35]], 0.12).translate(2.3, 0.25, 2.2);
+// ---- đại bàng bóng (raptor): broad-winged shadow eagle with a glowing chest core
+function modelEagle() {
+  const W = [[0.6, 1.2], [2.5, 1.35], [4.1, 0.55], [4.95, -0.15], [4.45, -0.5], [4.85, -0.95], [4.15, -0.95], [4.35, -1.5], [3.65, -1.35], [3.65, -1.95], [3.0, -1.7], [2.35, -2.05], [1.5, -1.65], [0.6, -1.5]];
+  const wing = slab(W, 0.16).translate(0, 0.25, 0);
+  const tail = slab([[0.3, -1.6], [1.25, -3.9], [0.6, -3.7], [0.3, -4.05], [0, -3.75], [-0.3, -4.05], [-0.6, -3.7], [-1.25, -3.9], [-0.3, -1.6]], 0.14).translate(0, 0.1, 0);
+  const F = flapW(0.5, 4.5);
+  const brow = slab([[0.08, 0.15], [0.62, 0.05], [0.55, -0.2], [0.08, -0.05]], 0.12);
   return mergeGeometries([
-    paint(pod, '#3e4838'), ...sym(boom, '#343b30'), ...sym(wing, '#3e4838'), ...sym(tfin, '#d6a21f'),
-    paint(new THREE.BoxGeometry(1.1, 0.18, 0.5).translate(0, 0.45, -2.0), '#ff3b1f', 1),
-    ...sym(new THREE.CylinderGeometry(0.28, 0.28, 0.2, 8).rotateX(Math.PI / 2).translate(2.3, -0.1, 3.75), '#ff7a2a', 1),
-    ...sym(new THREE.BoxGeometry(0.72, 0.72, 0.6).translate(2.3, -0.1, -2.3), '#d6a21f'),
+    bp(ell(0.85, 0.78, 2.0, 0, 0, 0.3), INK),
+    bp(ell(0.72, 0.72, 0.9, 0, -0.15, -0.95), INK),
+    bp(ell(0.55, 0.55, 0.72, 0, 0.38, -2.0), INK),
+    bp(spike([0, 0.38, -2.4], [0, 0.18, -3.3], 0.28, 4), INK2),
+    bp(spike([0, 0.15, -3.15], [0, -0.25, -3.25], 0.12, 3), INK2),
+    ...[-1, 1].map(s => bp(ell(0.13, 0.11, 0.12, s * 0.36, 0.5, -2.42), EYE, 1)),
+    ...bsym(brow.clone().rotateZ(-0.25).translate(0.0, 0.66, -2.42), INK2),
+    // chest core + its cracks
+    bp(ell(0.44, 0.44, 0.3, 0, -0.3, -1.68, 10, 8), VIO, 1),
+    ...[[0.7, 0.35], [-0.7, 0.35], [0.5, -0.6], [-0.5, -0.6], [0, 0.65]].map(([x, y]) => bp(bone([0, -0.3, -1.75], [x, -0.3 + y, -1.3 + Math.abs(x) * 0.3], 0.07), VIO, 1)),
+    // glowing spine seam (visible from behind while it holds station)
+    bp(bone([0, 0.8, -0.8], [0, 0.72, 1.6], 0.12), VIO, 1),
+    ...bsym(wing, MEMB, 0, F),
+    ...bsym(bone(wp(W[0], 0.36), wp(W[3], 0.36), 0.12), VIO, 1, F),
+    ...[W[6], W[9], W[11]].flatMap(t => bsym(bone(wp([2.5, 1.0], 0.35), wp(t, 0.35), 0.07), VIO2, 1, F)),
+    bp(tail, MEMB),
+    ...[-1, 1].map(s => bp(spike([s * 0.4, -0.6, -0.2], [s * 0.45, -1.4, -0.5], 0.14, 4), INK2)),
+    wisp(0.45, 0.1, 3.4, 3.2, 0.18, 1.3), wisp(-0.45, 0.1, 3.4, 3.2, 0.18, 1.3), wisp(0, 0.2, 3.7, 3.8, 0.15, 1.5, 0.4),
   ]);
 }
 
-function modelDrone() {
-  const disc = new THREE.CylinderGeometry(1.6, 1.9, 0.45, 8);
-  const dome = new THREE.SphereGeometry(0.8, 8, 4, 0, TAU, 0, Math.PI / 2).translate(0, 0.2, 0);
-  const ring = new THREE.TorusGeometry(1.75, 0.12, 4, 16).rotateX(Math.PI / 2);
-  return mergeGeometries([paint(disc, '#474c59'), paint(dome, '#ff3a5c', 1), paint(ring, '#ff7a30', 0.8),
-    ...sym(new THREE.BoxGeometry(0.4, 0.2, 1.4).translate(2.1, 0, 0), '#2c2f38')]);
+// ---- ma trơi (drone): will-o'-the-wisp — violet flame orb behind a dark mask face
+function modelWisp() {
+  const mask = ell(0.95, 1.12, 0.5, 0, -0.08, -1.12, 12, 8);
+  const flames = [];
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * TAU + 0.3, x = Math.cos(a) * 0.75, y = Math.sin(a) * 0.75 + 0.2;
+    flames.push(bp(spike([x, y, 0.4], [x * 1.6, y * 1.4 + 1.2, 2.9 + (i % 2) * 0.8], 0.42, 5), '#7a35e0', 0.4, swayZ(0.2, 3, 1.3)));
+  }
+  return mergeGeometries([
+    bp(new THREE.SphereGeometry(1.32, 12, 8), '#7a2cff', 0.5),
+    bp(new THREE.SphereGeometry(0.8, 8, 6).translate(0, 0.15, 0.75), '#e6c4ff', 0.8),
+    ...flames,
+    bp(mask, INK),
+    bp(spike([0, 0.85, -1.3], [0, 1.85, -0.9], 0.2, 4), INK), // brow horn
+    ...[-1, 1].map(s => bp(ell(0.27, 0.11, 0.1, 0, 0, 0).rotateZ(s * 0.4).translate(s * 0.36, 0.2, -1.58), EYE, 1)),
+    bp(ell(0.4, 0.07, 0.1, 0, -0.42, -1.55), EYE, 0.9),
+    ...[-0.24, 0, 0.24].map(x => bp(spike([x, -0.37, -1.6], [x, -0.55, -1.56], 0.05, 3), INK)),
+  ]);
 }
 
-function modelMine() {
-  const parts = [paint(new THREE.IcosahedronGeometry(1.8, 0), '#2e2b36'), paint(new THREE.TorusGeometry(1.9, 0.18, 4, 18), '#ff2a2a', 1)];
-  const dirs = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1], [0.7, 0.7, 0], [-0.7, -0.7, 0]];
-  for (const d of dirs) {
-    const c = new THREE.ConeGeometry(0.35, 1.4, 5).translate(0, 2.3, 0);
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(...d).normalize());
-    c.applyQuaternion(q);
-    parts.push(paint(c, '#7a7f8a'));
+// ---- hạt bóng (mine): spiky shadow seed pod split by pulsing violet seams
+function modelPod() {
+  const parts = [bp(new THREE.IcosahedronGeometry(1.75, 1), INK2), bp(new THREE.SphereGeometry(1.25, 8, 6), VIO, 1)];
+  for (const r of [[0, 0, 0], [Math.PI / 2, 0, 0], [0, Math.PI / 2, 0]]) parts.push(bp(new THREE.TorusGeometry(1.78, 0.1, 4, 20).rotateX(r[0]).rotateY(r[1]), VIO, 1));
+  const ico = new THREE.IcosahedronGeometry(1, 0).attributes.position, seen = new Set();
+  for (let i = 0; i < ico.count; i++) {
+    const d = new THREE.Vector3(ico.getX(i), ico.getY(i), ico.getZ(i)).normalize();
+    const k = d.toArray().map(v => v.toFixed(2)).join(); if (seen.has(k)) continue; seen.add(k);
+    parts.push(bp(spike(d.clone().multiplyScalar(1.45).toArray(), d.clone().multiplyScalar(3.25).toArray(), 0.34, 4), INK));
+    parts.push(bp(spike(d.clone().multiplyScalar(2.75).toArray(), d.clone().multiplyScalar(3.3).toArray(), 0.09, 3), EYE, 1));
   }
   return mergeGeometries(parts);
 }
 
-function modelCarrier() {
-  const body = new THREE.OctahedronGeometry(2.2, 0).scale(1.2, 0.8, 1.5);
-  const box = new THREE.BoxGeometry(2.2, 1.4, 2.2).translate(0, -1.2, 0);
-  return mergeGeometries([paint(body, '#c9a03a'), paint(box, '#3a3f4a'), paint(new THREE.TorusGeometry(1.5, 0.15, 4, 12).rotateX(Math.PI / 2).translate(0, -0.2, 0), '#46e0ff', 1),
-    ...sym(new THREE.BoxGeometry(2.2, 0.15, 1.2).translate(2.4, 0, 0), '#8a6a22')]);
-}
-
-function modelGunship() {
-  const hull = loft([
-    { z: -14, pts: hexSect(0.4, 0.4) }, { z: -10, pts: hexSect(2.6, 1.8) }, { z: 0, pts: hexSect(3.6, 2.4) }, { z: 9, pts: hexSect(3.2, 2.2) }, { z: 13, pts: hexSect(2.2, 1.6) },
-  ]);
-  const parts = [paint(hull, '#3b3f4f')];
-  parts.push(paint(new THREE.BoxGeometry(2.8, 2.0, 5).translate(0, 3.0, 3), '#2e3240'));
-  parts.push(paint(new THREE.BoxGeometry(2.4, 0.3, 1.2).translate(0, 3.6, 0.8), '#ffb84a', 1));
-  for (const sx of [-1, 1]) {
-    for (const sy of [-1, 1]) {
-      parts.push(paint(new THREE.CylinderGeometry(1.1, 1.3, 6, 8).rotateX(Math.PI / 2).translate(4.2 * sx, 1.1 * sy, 9), '#2a2d38'));
-      parts.push(paint(new THREE.CircleGeometry(0.9, 8).translate(4.2 * sx, 1.1 * sy, 12.05), '#ff7a2a', 1));
-    }
-    parts.push(paint(new THREE.BoxGeometry(0.4, 0.3, 18).translate(3.65 * sx, 0, -1), '#a8323a'));
+// ---- đèn ma (carrier): floating ghost-lantern beast; one eye and a torn grin peer out of the paper
+function modelLantern() {
+  const prof = [[0.01, -1.95], [0.95, -1.82], [1.7, -1.2], [2.05, -0.25], [2.0, 0.6], [1.62, 1.4], [0.95, 1.85], [0.01, 1.92]].map(([r, y]) => new THREE.Vector2(r, y));
+  const paperR = (y) => { for (let i = 0; i < prof.length - 1; i++) { const a = prof[i], b = prof[i + 1]; if (y >= a.y && y <= b.y) return lerp(a.x, b.x, (y - a.y) / (b.y - a.y)); } return 0; };
+  const parts = [bp(new THREE.LatheGeometry(prof, 12), '#5e2aa8', 0.75)];
+  for (const y of [-1.2, -0.45, 0.35, 1.15]) parts.push(bp(new THREE.TorusGeometry(paperR(y) + 0.03, 0.07, 4, 16).rotateX(Math.PI / 2).translate(0, y, 0), INK));
+  for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; parts.push(bp(bone([Math.cos(a) * 0.95, -1.82, Math.sin(a) * 0.95], [Math.cos(a) * 2.07, -0.25, Math.sin(a) * 2.07], 0.06), INK)); }
+  parts.push(
+    bp(new THREE.CylinderGeometry(1.05, 0.95, 0.45, 10).translate(0, 2.05, 0), INK),
+    bp(new THREE.CylinderGeometry(0.95, 1.05, 0.4, 10).translate(0, -2.0, 0), INK),
+    bp(new THREE.TorusGeometry(0.65, 0.09, 4, 10, Math.PI).translate(0, 2.25, 0), INK2),
+    // the shadow creature looking out: one huge eye and a ragged grin torn through the paper
+    bp(ell(0.82, 0.6, 0.3, 0, 0.6, -1.85, 10, 8), INK),
+    bp(ell(0.42, 0.42, 0.2, 0, 0.6, -2.02, 10, 6), EYE, 1),
+    bp(ell(0.12, 0.3, 0.1, 0, 0.6, -2.17), '#1a0610', 0),
+    bp(ell(1.25, 0.42, 0.35, 0, -0.55, -1.7, 10, 6), INK),
+    ...[-0.85, -0.42, 0, 0.42, 0.85].map((x, i) => bp(spike([x, -0.25 - (i % 2) * 0.1, -2.0 + Math.abs(x) * 0.12], [x * 0.98, -0.62, -2.05 + Math.abs(x) * 0.12], 0.13, 3), '#f2e2ff', 0.7)),
+    bp(ell(0.32, 0.12, 0.42, 0, -0.85, -2.0), EYE, 0.8), // tongue
+    // tattered tassels and a cord to the carried power-up
+    ...[[0.55, 0], [-0.55, 0], [0, 0.55], [0, -0.55]].map(([x, z]) => bp(spike([x, -2.15, z], [x * 1.3, -4.3, z * 1.3], 0.16, 4), WISP, 0.4, swayY(-2.15, 2.2, 0.9))),
+    bp(bone([0, -2.1, 0], [0, -2.75, 0], 0.07), INK2),
+  );
+  // the creature's claws pressing against the paper from inside
+  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const y = 0.15 - i * 0.32, a = sx * (1.15 + i * 0.12);
+    const r = paperR(y) + 0.02, r2 = paperR(y - 0.55) + 0.02;
+    parts.push(bp(spike([Math.sin(a) * r, y, -Math.cos(a) * r], [Math.sin(a + sx * 0.25) * r2, y - 0.55, -Math.cos(a + sx * 0.25) * r2], 0.09, 3), INK));
   }
-  parts.push(...sym(slab([[3.4, 4], [9, -3], [9, -6], [3.4, -6]], 0.5), '#343847'));
-  return mergeGeometries([...parts, ...[-5, 1, 7].map(z => paint(new THREE.SphereGeometry(1.1, 8, 4, 0, TAU, 0, Math.PI / 2).translate(0, 2.3, z), '#59606b'))]);
+  return mergeGeometries(parts);
 }
 
-function modelTurretBase() {
-  return mergeGeometries([paint(new THREE.CylinderGeometry(2.6, 3.2, 2.4, 8).translate(0, 1.2, 0), '#3a3f47'),
-    paint(new THREE.TorusGeometry(2.7, 0.15, 4, 16).rotateX(Math.PI / 2).translate(0, 2.2, 0), '#ff3a2a', 0.8)]);
+// ---- cá đuối bóng (gunship): colossal shadow manta, rippling wings, whip tail, glowing gills
+function modelManta() {
+  const W = [[2.6, 8.6], [6.0, 5.4], [9.4, 1.8], [11.6, -0.7], [10.3, -1.7], [7.4, -3.2], [4.8, -5.6], [2.6, -7.2]];
+  const wing = slab(W, 0.55).translate(0, 0.15, 0);
+  const lobe = slab([[0.9, 10.6], [1.6, 13.9], [2.5, 14.1], [2.6, 12.6], [2.3, 10.2]], 0.35).translate(0, -0.35, 0);
+  const F = flapW(2.2, 9.6);
+  const body = loft([
+    { z: -11.5, pts: hexSect(1.6, 0.6) }, { z: -9, pts: hexSect(3.4, 1.5) }, { z: -3, pts: hexSect(4.0, 2.0) }, { z: 3.5, pts: hexSect(3.4, 1.7) }, { z: 8.5, pts: hexSect(1.6, 0.9) }, { z: 10.5, pts: hexSect(0.5, 0.4) },
+  ]);
+  const parts = [bp(body, INK), ...bsym(wing, MEMB, 0, F), ...bsym(lobe, INK2)];
+  // violet veins along the wings (flap with them)
+  parts.push(...bsym(bone(wp(W[0], 0.5), wp(W[3], 0.5), 0.22), VIO, 1, F));
+  parts.push(...bsym(bone(wp([3.5, 2.5], 0.48), wp(W[3], 0.48), 0.14), VIO2, 1, F));
+  parts.push(...bsym(bone(wp([3.0, -2.0], 0.46), wp(W[5], 0.46), 0.14), VIO2, 1, F));
+  // eyes, gills on the belly (seen from below as it crosses overhead), spine of thorns
+  parts.push(...[-1, 1].map(s => bp(ell(0.5, 0.36, 0.5, s * 2.95, 0.55, -9.0), EYE, 1)));
+  parts.push(...[-1, 1].map(s => bp(ell(0.7, 0.18, 0.5, s * 2.95, 1.0, -8.7), INK2)));
+  for (let i = 0; i < 5; i++) for (const s of [-1, 1]) parts.push(bp(bone([s * 1.4, -1.75, -6.6 + i * 1.05], [s * 2.7, -1.45, -6.9 + i * 1.05], 0.16), VIO, 1));
+  parts.push(bp(ell(1.1, 0.4, 1.3, 0, -1.6, 1.5, 10, 6), VIO, 1)); // belly core
+  for (let i = 0; i < 6; i++) parts.push(bp(spike([0, 1.65 - i * 0.08, -5.5 + i * 2.3], [0, 2.9 - i * 0.12, -4.4 + i * 2.3], 0.42, 4), INK2));
+  parts.push(bp(bone([0, 1.95, -8.5], [0, 1.4, 8.0], 0.2), VIO, 1));
+  // whip tail with a barb, and shadow wisps peeling off the wingtips
+  parts.push(bp(spike([0, 0, 9.5], [0, 0.2, 26], 0.55, 5), INK, 0, swayZ(9.5, 16.5, 2.4)));
+  parts.push(bp(spike([0, 0.4, 11], [0, 1.6, 14], 0.35, 4), VIO2, 1, swayZ(9.5, 16.5, 2.4)));
+  for (const s of [-1, 1]) parts.push(bp(spike([s * 10.6, 0.15, -0.6], [s * 12.6, 0.4, 5.5], 0.38, 4), WISP, 0.35, (x, y, z) => [flapW(2.2, 9.6)(x)[0], clamp((z + 0.6) / 6, 0, 1) * 1.5]));
+  return mergeGeometries(parts);
 }
-function modelTurretHead() {
+
+// ---- tượng cóc đá (turret): corrupted stone toad on a temple plinth — its maw is the gun
+function modelPlinth(w = 5.2) {
   return mergeGeometries([
-    paint(new THREE.SphereGeometry(1.9, 10, 5, 0, TAU, 0, Math.PI / 2), '#5a616d'),
-    ...[-0.55, 0.55].map(x => paint(new THREE.CylinderGeometry(0.22, 0.26, 3.2, 6).rotateX(Math.PI / 2).translate(x, 0.8, -2.2), '#26292f')),
-    paint(new THREE.BoxGeometry(0.9, 0.35, 0.3).translate(0, 1.25, -1.55), '#ff2a2a', 1),
+    bp(new THREE.BoxGeometry(w, 1.3, w).translate(0, 0.65, 0), STONE2),
+    bp(new THREE.BoxGeometry(w * 0.82, 1.0, w * 0.82).translate(0, 1.8, 0), STONE),
+    bp(new THREE.BoxGeometry(w * 0.9, 0.18, w * 0.9).translate(0, 2.35, 0), STONE2),
+    ...[0, 1, 2, 3].map(i => bp(new THREE.BoxGeometry(w * 0.84, 0.12, 0.12).translate(0, 1.35, w * 0.42).rotateY(i * Math.PI / 2), VIO, 0.9)),
   ]);
 }
-function modelAAHead() {
+function modelToad() {
   return mergeGeometries([
-    paint(new THREE.BoxGeometry(3.2, 1.6, 2.6).translate(0, 0.8, 0), '#4c5260'),
-    ...[-1.1, -0.37, 0.37, 1.1].map(x => paint(new THREE.CylinderGeometry(0.16, 0.2, 3.6, 5).rotateX(Math.PI / 2).translate(x, 1.1, -2.6), '#26292f')),
-    paint(new THREE.BoxGeometry(2.4, 0.25, 0.25).translate(0, 1.7, -1.3), '#ffae2a', 1),
+    bp(ell(1.75, 1.1, 1.9, 0, 0.95, 0.25, 10, 7), STONE),
+    bp(ell(1.55, 0.82, 1.15, 0, 1.15, -1.25, 10, 6), STONE),
+    bp(ell(1.25, 0.24, 0.6, 0, 0.8, -1.95, 10, 6), VIO, 1),           // glowing maw (muzzle)
+    bp(ell(0.5, 0.2, 0.32, 0, 0.82, -2.3), '#ffd6f4', 1),                // charge in the throat
+    ...[-1, 1].flatMap(s => [
+      bp(ell(0.46, 0.44, 0.46, s * 0.85, 1.8, -1.35), STONE),
+      bp(ell(0.2, 0.18, 0.14, s * 0.9, 1.88, -1.74), EYE, 1),
+      bp(ell(0.42, 0.62, 0.62, s * 1.25, 0.35, -1.25), STONE2),        // fore legs
+      bp(ell(0.65, 0.5, 0.95, s * 1.6, 0.45, 0.95), STONE2),            // haunches
+    ]),
+    ...[[0.7, 1.95, 0.4], [-0.6, 1.95, 0.9], [0.1, 2.05, 0.1], [1.05, 1.55, 1.2], [-1.1, 1.65, -0.1], [0.4, 1.8, 1.4]].map(([x, y, z]) => bp(ell(0.17, 0.12, 0.17, x, y, z), VIO, 0.8)),
   ]);
+}
+
+// ---- tượng nghê đá (aagun): stone guardian-dog bust whose head swivels; flak spits from its fanged jaws
+function modelNgheBase() {
+  return mergeGeometries([
+    modelPlinth(4.8),
+    bp(new THREE.CylinderGeometry(1.25, 1.5, 0.6, 8).translate(0, 2.65, 0), STONE2),
+  ]);
+}
+function modelNgheHead() {
+  const parts = [
+    bp(ell(1.4, 1.2, 1.35, 0, 1.25, 0.1, 10, 7), STONE),
+    bp(ell(1.15, 0.5, 0.9, 0, 1.6, -1.2), STONE),                      // upper jaw / snout
+    bp(ell(1.05, 0.35, 0.8, 0, 0.55, -1.15), STONE),                   // lower jaw
+    bp(ell(0.95, 0.32, 0.55, 0, 1.08, -1.6, 10, 6), VIO, 1),           // glowing throat
+    ...[-0.75, -0.25, 0.25, 0.75].map(x => bp(spike([x, 1.25, -1.6], [x, 1.12, -2.75], 0.17, 5), STONE2)),
+    ...[-0.75, -0.25, 0.25, 0.75].map(x => bp(ell(0.1, 0.1, 0.1, x, 1.12, -2.72), '#ffd6f4', 1)),
+    bp(spike([0, 2.2, -0.4], [0, 3.1, 0.6], 0.3, 4), STONE2),           // horn
+  ];
+  for (const s of [-1, 1]) {
+    parts.push(bp(ell(0.22, 0.2, 0.16, s * 0.58, 1.95, -1.3), EYE, 1));
+      }
+  parts.push(...bsym(slab([[0.1, 0.2], [0.8, 0.05], [0.75, -0.25], [0.1, -0.1]], 0.2).rotateZ(-0.3).translate(0, 2.2, -1.25), STONE2));
+  // mane of stone curls framing the face
+  for (let i = 0; i < 11; i++) {
+    const a = Math.PI * (-0.15 + i / 10 * 1.3);
+    parts.push(bp(ell(0.48, 0.48, 0.42, Math.cos(a) * 1.45, 1.25 + Math.sin(a) * 1.3, 0.55), i % 2 ? STONE2 : STONE));
+  }
+  return mergeGeometries(parts);
 }
 
 const GEO = {};
 function geo(name) {
-  if (!GEO[name]) GEO[name] = ({ dart: modelDart, interceptor: modelInterceptor, raptor: modelRaptor, drone: modelDrone, mine: modelMine, carrier: modelCarrier, gunship: modelGunship, turretBase: modelTurretBase, turretHead: modelTurretHead, aaHead: modelAAHead })[name]();
+  if (!GEO[name]) GEO[name] = ({ dart: modelCrow, interceptor: modelBat, raptor: modelEagle, drone: modelWisp, mine: modelPod, carrier: modelLantern, gunship: modelManta, turretBase: () => modelPlinth(5.2), turretHead: modelToad, aaBase: modelNgheBase, aaHead: modelNgheHead })[name]();
   return GEO[name];
+}
+
+// Carried power-up shown dangling under the ghost lantern (same shapes/colours as the item props)
+const CARRY = {
+  laser: { color: '#46ff7a', glow: [0.5, 3, 1], g: () => new THREE.OctahedronGeometry(0.85) },
+  bomb: { color: '#ff5a2a', glow: [3, 1, 0.4], g: () => new THREE.CapsuleGeometry(0.55, 0.9, 3, 8).rotateZ(Math.PI / 2) },
+  shield: { color: '#46b8ff', glow: [0.6, 1.6, 3.4], g: () => new THREE.IcosahedronGeometry(0.8, 0) },
+};
+function carryMesh(kind) {
+  const C = CARRY[kind] || CARRY.laser;
+  if (!C.mesh) {
+    C.mat = new THREE.MeshStandardMaterial({ color: C.color, emissive: C.color, emissiveIntensity: 2.2, roughness: 0.3, metalness: 0.2 });
+    patchFog(C.mat);
+    C.geo = C.g();
+  }
+  return new THREE.Mesh(C.geo, C.mat);
+}
+
+// ============================================================ Shadow-beast material
+// Vertex-coloured standard material + emissive mask (aEmit), hit flash, stage tint, violet rim light,
+// procedural glowing vein network and vertex-shader wing flap / tail sway (aAnim).
+function beastMaterial(opts = {}) {
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.08, ...opts });
+  const U = mat.userData;
+  U.emit = { value: 3.2 }; U.flash = { value: 0 }; U.tint = { value: new THREE.Color(1, 1, 1) };
+  U.phase = { value: 0 }; U.amp = { value: 0 }; U.time = { value: 0 };
+  U.rim = { value: new THREE.Color(0.55, 0.22, 1.0) }; U.vein = { value: new THREE.Vector4(0.6, 0.3, 1.0, 1) };
+  const extra = (shader) => {
+    const u = mat.userData;
+    Object.assign(shader.uniforms, { uEmitBoost: u.emit, uFlash: u.flash, uTint: u.tint, uPhase: u.phase, uAmp: u.amp, uTime: u.time, uRim: u.rim, uVein: u.vein });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+attribute float aEmit; attribute vec2 aAnim; varying float vEmit; varying vec3 vObjP;
+uniform float uPhase; uniform float uAmp; uniform float uTime;
+float flapAng(vec3 p) { return uAmp * sin(uPhase - aAnim.x * 1.2) * aAnim.x * sign(p.x); }
+vec2 rot2(vec2 v, float a) { float c = cos(a), s = sin(a); return vec2(c * v.x - s * v.y, s * v.x + c * v.y); }`)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+if (aAnim.x > 0.0) objectNormal.xy = rot2(objectNormal.xy, flapAng(position));`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+vEmit = aEmit; vObjP = position;
+if (aAnim.x > 0.0) transformed.xy = rot2(transformed.xy, flapAng(position));
+if (aAnim.y > 0.0) {
+  transformed.x += aAnim.y * sin(uTime * 5.0 - position.z * 0.8 - position.y * 0.6) * 0.55;
+  transformed.y += aAnim.y * cos(uTime * 3.7 - position.z * 0.6 + position.x * 0.5) * 0.4;
+}`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+varying float vEmit; varying vec3 vObjP; uniform float uEmitBoost; uniform float uFlash; uniform vec3 uTint;
+uniform float uTime; uniform vec3 uRim; uniform vec4 uVein;`)
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= mix(uTint, vec3(1.0), vEmit);')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+totalEmissiveRadiance += vColor.rgb * vEmit * uEmitBoost + vec3(uFlash);
+{
+  float dark = 1.0 - clamp(vEmit, 0.0, 1.0);
+  float fr = 1.0 - abs(dot(normal, normalize(vViewPosition)));
+  totalEmissiveRadiance += uRim * (fr * fr) * (fr * fr) * dark;
+  vec3 q = vObjP * uVein.w;
+  float n = sin(q.x * 2.3 + sin(q.z * 1.7 + q.y * 1.3) * 1.9) + 0.85 * sin(q.z * 2.1 + sin(q.x * 1.5 - q.y * 2.2) * 1.7);
+  float fw = fwidth(n) + 1e-4;
+  float ln = (1.0 - smoothstep(0.0, 0.08 + fw, abs(n))) * min(1.0, 0.2 / fw);
+  float pulse = 0.6 + 0.4 * sin(uTime * 2.6 + q.z * 0.9 + q.x * 0.6);
+  totalEmissiveRadiance += uVein.xyz * ln * pulse * dark;
+}`);
+  };
+  patchFog(mat, extra);
+  return mat;
+}
+
+// Per-role look: wing-beat rate/amplitude, rim and vein strength, eye/core glow points (model space),
+// and where the trailing shadow wisps peel off.
+const LOOK = {
+  dart:        { rate: 9.5, amp: 0.55, rim: 0.7, vein: 1.0, vf: 1.2, eyes: [[0.31, 0.32, -1.9]], eyeSize: 1.1, wisp: [0, 0.1, 3.4], wispT: 0.11 },
+  interceptor: { rate: 15, amp: 0.7, rim: 0.7, vein: 1.0, vf: 1.2, eyes: [[0.19, 0.26, -1.42]], eyeSize: 1.0, wisp: [0, 0, 2.6], wispT: 0.11 },
+  raptor:      { rate: 4.6, amp: 0.38, rim: 0.7, vein: 1.0, vf: 1.0, eyes: [[0.36, 0.5, -2.5]], eyeSize: 1.2, core: [[0, -0.3, -1.85], 4.2], wisp: [0, 0.1, 4.5], wispT: 0.09 },
+  drone:       { rate: 0, amp: 0, rim: 0.6, vein: 0.5, vf: 1.5, core: [[0, 0, -1.4], 7.5], coreA: 0.9, wisp: [0, 1.0, 2.6], wispT: 0.14 },
+  mine:        { rate: 0, amp: 0, rim: 0.7, vein: 0.9, vf: 1.4, core: [[0, 0, 0], 4.5] },
+  carrier:     { rate: 0, amp: 0, rim: 0.7, vein: 0.6, vf: 1.4, eyes: [[0, 0.6, -2.1]], eyeSize: 2.2, mono: true, wisp: [0, -3.4, 0], wispT: 0.16 },
+  gunship:     { rate: 1.8, amp: 0.34, rim: 0.7, vein: 1.1, vf: 0.45, eyes: [[2.95, 0.55, -9.4]], eyeSize: 3.2, core: [[0, -1.9, 1.5], 7], wisp: [0, 0, 14], wispT: 0.05 },
+  turret:      { rate: 0, amp: 0, rim: 0.2, vein: 1.1, vf: 0.6, stone: true },
+  aagun:       { rate: 0, amp: 0, rim: 0.2, vein: 1.1, vf: 0.6, stone: true },
+};
+
+// Death: the shadow tears apart — violet flash, ink billows that cool to black, violet sparks, rising wisps.
+const _d = new THREE.Vector3();
+function randDir(out) { const u = Math.random() * 2 - 1, a = Math.random() * TAU, s = Math.sqrt(1 - u * u); return out.set(s * Math.cos(a), u, s * Math.sin(a)); }
+function shadowBurst(pos, size, vel, stone) {
+  const s = size, rs = Math.sqrt(size);
+  const vx = vel ? vel.x * 0.3 : 0, vy = vel ? vel.y * 0.3 : 0, vz = vel ? vel.z * 0.3 : 0;
+  FX.add.spawn(pos.x, pos.y, pos.z, 0, 0, 0, 0.1 * rs + 0.06, 3 * s, 11 * s, [1.6, 0.8, 3.8, 1], [0.5, 0.15, 1.5, 0], 0);
+  const nf = Math.round(7 * s) + 2;
+  for (let i = 0; i < nf; i++) {
+    randDir(_d);
+    const sp = rand(2.5, 10) * rs, o = rand(0, 1.3) * s;
+    FX.smoke.spawn(pos.x + _d.x * o, pos.y + _d.y * o, pos.z + _d.z * o, _d.x * sp + vx, _d.y * sp + 2 + vy, _d.z * sp + vz,
+      rand(0.8, 1.3) * rs, rand(2.3, 3.6) * s, rand(6.5, 10) * s,
+      stone ? [1.2, 0.6, 2.2, 1] : [1.1, 0.3, 3.0, 1], [0.03, 0.02, 0.05, 0], 1, { rotV: rand(-1.5, 1.5), drag: 2.4, cpow: 0.45 });
+  }
+  const nh = Math.round(2 * s) + 1;
+  for (let i = 0; i < nh; i++) {
+    randDir(_d);
+    FX.add.spawn(pos.x + _d.x * s, pos.y + _d.y * s, pos.z + _d.z * s, _d.x * 4, _d.y * 4 + 2, _d.z * 4, rand(0.25, 0.4) * rs, 2 * s, 5 * s, [1.5, 0.3, 2.6, 0.8], [0.4, 0.05, 0.8, 0], 1, { rotV: rand(-2, 2), drag: 2 });
+  }
+  const ns = Math.round(13 * s);
+  for (let i = 0; i < ns; i++) {
+    randDir(_d);
+    const sp = rand(25, 70) * rs;
+    FX.add.spawn(pos.x, pos.y, pos.z, _d.x * sp, _d.y * sp, _d.z * sp, rand(0.3, 0.8), rand(0.22, 0.4) * rs, 0.08,
+      [2.2, 1.2, 6.5, 1], [0.8, 0.2, 2.6, 0], 0, { stretch: 0.05, drag: 1.6, grav: 6 });
+  }
+  const nsm = Math.round(5 * s);
+  for (let i = 0; i < nsm; i++) {
+    randDir(_d);
+    const sp = rand(2, 6) * rs;
+    FX.smoke.spawn(pos.x + _d.x * s, pos.y + _d.y * s, pos.z + _d.z * s, _d.x * sp, _d.y * sp + 4, _d.z * sp,
+      rand(1.6, 2.8) * rs, 4 * s, rand(12, 17) * s, stone ? [0.22, 0.2, 0.24, 0.7] : [0.06, 0.04, 0.09, 0.75], stone ? [0.35, 0.33, 0.37, 0] : [0.16, 0.11, 0.22, 0], 1, { fadeIn: 0.3, drag: 1.1, rotV: rand(-0.6, 0.6) });
+  }
+  FX.add.spawn(pos.x, pos.y, pos.z, 0, 0, 0, 0.35, 1.5 * s, 16 * s, [1.0, 0.5, 1.6, 0.6], [0.35, 0.1, 0.6, 0], 3, { rot: 0 });
+  if (stone) for (let i = 0, n = Math.round(5 * s); i < n; i++) {
+    randDir(_d);
+    FX.debris.spawn(pos, _b.set(_d.x * rand(12, 30) * rs, Math.abs(_d.y) * rand(10, 28) * rs + 6, _d.z * rand(12, 30) * rs), rand(0.4, 0.9) * rs, false);
+  }
+  flashLight(pos, 0xb46bff, 900 * s, 0.22 + 0.1 * rs);
+  const dist = G.camera.position.distanceTo(pos);
+  addShake(clamp(0.5 * s / Math.max(1, dist / 30), 0, 0.8));
+  if (pos.y < 6) splash(pos, s * 0.8);
 }
 
 // ============================================================ Definitions
@@ -238,7 +525,7 @@ const PAT = {
 
 // ============================================================ Enemy
 const _p = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
-const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0);
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _w = new THREE.Vector3();
 
 export const enemies = [];
 const pools = new Map();
@@ -247,10 +534,15 @@ export class Enemy {
   constructor(type) {
     this.type = type;
     this.def = DEFS[type];
-    this.mat = emissiveVertexMaterial({ roughness: 0.5, metalness: 0.35 }, 3.2);
+    this.look = LOOK[type];
+    this.mat = beastMaterial(this.look.stone ? { roughness: 0.92, metalness: 0 } : {});
+    const U = this.mat.userData;
+    U.amp.value = this.look.amp;
+    U.rim.value.setRGB(0.55, 0.22, 1.0).multiplyScalar(this.look.rim);
+    U.vein.value.set(0.6 * this.look.vein, 0.3 * this.look.vein, 1.0 * this.look.vein, this.look.vf);
     this.root = new THREE.Group();
     if (type === 'turret' || type === 'aagun') {
-      this.base = new THREE.Mesh(geo('turretBase'), this.mat);
+      this.base = new THREE.Mesh(geo(type === 'turret' ? 'turretBase' : 'aaBase'), this.mat);
       this.head = new THREE.Mesh(geo(type === 'turret' ? 'turretHead' : 'aaHead'), this.mat);
       this.head.position.y = 2.4;
       this.root.add(this.base, this.head);
@@ -291,7 +583,11 @@ export class Enemy {
     if (this.credit && G.run && G.state === 'play') G.run.spawned = (G.run.spawned || 0) + this.def.hits;
     this.mat.userData.flash.value = 0;
     this.mat.userData.emit.value = 3.2;
+    this.mat.userData.phase.value = rand(0, TAU);
+    this.wispT = rand(0, 0.2);
     if (G.enemyTint) this.mat.userData.tint.value.copy(G.enemyTint);
+    if (this.carryMesh) { this.root.remove(this.carryMesh); this.carryMesh = null; }
+    if (this.type === 'carrier' && this.carry) { this.carryMesh = carryMesh(this.carry); this.carryMesh.position.set(0, -3.4, 0); this.root.add(this.carryMesh); }
     this.first = true;
     this.pattern(this, 0);
     this.place();
@@ -329,6 +625,7 @@ export class Enemy {
     this.flash = Math.max(0, this.flash - dt * 6);
     this.mat.userData.flash.value = this.flash * 2.2;
     if (this.type === 'mine') { this.mat.userData.emit.value = 2 + Math.sin(this.t * 8) * 1.8; this.root.rotation.x += dt * 0.7; this.root.rotation.y += dt * 1.1; }
+    this.animate(dt);
     // behaviour
     const P = G.player;
     const toP = _v.subVectors(P.pos, this.pos);
@@ -342,18 +639,59 @@ export class Enemy {
     this.tryFire(dt, dist);
     // despawn when well behind the camera (chasers start back there with the wingman they're tailing)
     if (this.s < G.rail.d - (this.patternName === 'chase' ? 200 : 60) && this.t > 1) this.remove();
-    // glow accents
-    if (this.type === 'carrier') glow(this.pos, 6 + Math.sin(this.t * 6) * 1, 0.4, 2.2, 3, 0.6);
-    // damaged heavies trail smoke and sparks
+    // damaged heavies bleed shadow and violet embers
     if (this.maxHp > 2 && this.hp <= this.maxHp * 0.5 && !this.def.ground) {
       this.smokeT = (this.smokeT || 0) - dt;
       if (this.smokeT <= 0) {
         this.smokeT = 0.05;
         const k = this.def.scale || 1;
-        FX.smoke.spawn(this.pos.x, this.pos.y, this.pos.z, rand(-1, 1), rand(1, 3), rand(-1, 1), 1.2, 1.2 * k, 4.5 * k, [0.12, 0.11, 0.12, 0.65], [0.3, 0.29, 0.3, 0], 1, { fadeIn: 0.05 });
-        if (Math.random() < 0.3) FX.smoke.spawn(this.pos.x, this.pos.y, this.pos.z, 0, 0, 0, 0.3, 1.2 * k, 2.2 * k, [3.5, 1.2, 0.25, 0.9], [0.2, 0.1, 0.1, 0], 1, { cpow: 0.5 });
+        FX.smoke.spawn(this.pos.x, this.pos.y, this.pos.z, rand(-1, 1), rand(1, 3), rand(-1, 1), 1.2, 1.2 * k, 4.5 * k, [0.07, 0.05, 0.1, 0.65], [0.2, 0.15, 0.26, 0], 1, { fadeIn: 0.05 });
+        if (Math.random() < 0.3) FX.smoke.spawn(this.pos.x, this.pos.y, this.pos.z, 0, 0, 0, 0.3, 1.2 * k, 2.2 * k, [2.2, 0.8, 3.6, 0.9], [0.15, 0.05, 0.2, 0], 1, { cpow: 0.5 });
       }
     }
+  }
+
+  // Wing beats, tail sway, glowing eyes/cores and the shadow wisps peeling off the beast.
+  animate(dt) {
+    const L = this.look, U = this.mat.userData, k = this.def.scale || 1;
+    U.time.value = this.t;
+    if (L.rate) {
+      // beat harder while climbing, glide a little while diving
+      const climb = clamp(this.vel.y / 30, -0.6, 0.8);
+      U.phase.value += dt * L.rate * (1 + climb * 0.5);
+      U.amp.value = L.amp * (1 + climb * 0.35);
+    }
+    if (this.type === 'carrier') {
+      if (this.carryMesh) { this.carryMesh.rotation.y += dt * 2.2; this.carryMesh.position.y = -3.4 + Math.sin(this.t * 3) * 0.15; }
+      const c = (CARRY[this.carry] || CARRY.laser).glow;
+      glow(this.toWorld(0, -3.4, 0), 6 + Math.sin(this.t * 6) * 1, c[0], c[1], c[2], 0.65);
+    }
+    const camD = G.camera.position.distanceToSquared(this.pos);
+    if (camD > 900 * 900) return;
+    if (L.eyes) for (const e of L.eyes) {
+      const fl = 0.8 + 0.2 * Math.sin(this.t * 9 + e[0]);
+      glow(this.toWorld(e[0], e[1], e[2] - 0.15), L.eyeSize * k * fl, 3.2, 0.5, 1.8, 0.9);
+      if (!L.mono) glow(this.toWorld(-e[0], e[1], e[2] - 0.15), L.eyeSize * k * fl, 3.2, 0.5, 1.8, 0.9);
+    }
+    if (L.core) {
+      const c = L.core, pul = this.type === 'mine' ? U.emit.value / 3.2 : 0.85 + 0.15 * Math.sin(this.t * 5);
+      glow(this.toWorld(c[0][0], c[0][1], c[0][2]), c[1] * k * pul, 1.4, 0.6, 2.6, L.coreA ?? 0.55);
+    }
+    if (L.wisp && camD < 450 * 450) {
+      this.wispT -= dt;
+      if (this.wispT <= 0) {
+        this.wispT = L.wispT * rand(0.7, 1.3);
+        const w = this.toWorld(L.wisp[0] + rand(-0.4, 0.4), L.wisp[1], L.wisp[2]);
+        const big = this.type === 'gunship' ? 2.4 : 1;
+        FX.smoke.spawn(w.x, w.y, w.z, rand(-1, 1), rand(0.5, 2.5), rand(-1, 1), rand(0.6, 0.9) * (big > 1 ? 1.2 : 1), 0.6 * k * big, 2.6 * k * big, [0.07, 0.035, 0.12, 0.5], [0.22, 0.1, 0.36, 0], 1, { fadeIn: 0.15, drag: 1.2, rotV: rand(-1, 1) });
+        if (Math.random() < 0.35) FX.add.spawn(w.x, w.y, w.z, rand(-2, 2), rand(1, 4), rand(-2, 2), rand(0.4, 0.7), 0.35 * k * big, 0.05, [1.6, 0.7, 3.2, 1], [0.6, 0.2, 1.2, 0], 0, { drag: 1 });
+      }
+    }
+  }
+
+  toWorld(x, y, z) {
+    const k = this.def.scale || 1;
+    return _w.set(x * k, y * k, z * k).applyQuaternion(this.root.quaternion).add(this.root.position);
   }
 
   orient(dt) {
@@ -364,6 +702,17 @@ export class Enemy {
       const yaw = Math.atan2(-_v.x, -_v.z);
       this.head.rotation.y = yaw;
       this.head.rotation.x = clamp(Math.atan2(_v.y, Math.hypot(_v.x, _v.z)) * 0.5, -0.1, 0.7);
+      return;
+    }
+    if (this.type === 'drone' || this.type === 'carrier') {
+      // the wisp stares at the player; the lantern turns its eye to the player, bobbing and swaying
+      const C = G.camera.position;
+      _v2.copy(C); if (this.type === 'carrier') _v2.y = this.pos.y;
+      _m.lookAt(this.pos, _v2, _up);
+      this.quat.setFromRotationMatrix(_m);
+      if (this.type === 'carrier') this.quat.multiply(_q.setFromAxisAngle(_v2.set(0, 0, 1), Math.sin(this.t * 1.7) * 0.12));
+      else this.quat.multiply(_q.setFromAxisAngle(_v2.set(0, 0, 1), Math.sin(this.t * 2.3) * 0.2));
+      this.root.quaternion.copy(this.quat);
       return;
     }
     const sp = this.vel.length();
@@ -435,8 +784,7 @@ export class Enemy {
   kill(source) {
     if (!this.alive) return;
     this.alive = false;
-    const big = this.def.expl;
-    explode(this.pos, big, { vel: this.vel });
+    shadowBurst(this.pos, this.def.expl, this.vel, !!this.look.stone);
     AudioSys.sfx(this.def.sfx, { pan: clamp((this.pos.x - G.camera.position.x) / 60, -1, 1) });
     const credited = source !== 'self' && source !== 'wingman' && this.credit;
     if (credited) emit('enemyKilled', this, source);
@@ -492,6 +840,10 @@ export function warmEnemies() {
     e.root.position.set(0, -500, 0);
     G.scene.add(e.root);
   }
+  // compile the carried power-up's material too (spawn() swaps it for the real cargo)
+  const c = pools.get('carrier')[0];
+  c.carryMesh = carryMesh('laser');
+  c.root.add(c.carryMesh);
 }
 export function unwarmEnemies() {
   for (const [, list] of pools) for (const e of list) G.scene.remove(e.root);
