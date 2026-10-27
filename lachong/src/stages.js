@@ -78,7 +78,7 @@ export const STAGES = [
       paddy: ['#7aac3a', '#90bc48', '#68a036', '#a8c45a'], hill: '#4e7a36', hill2: '#5a8a3c', mud: '#7a6448', bank: '#8a7458', lamps: false,
     },
     enemyTint: '#d8ccff',
-    boss: { type: 'serpent', name: 'THỦY TINH ẢNH', sub: 'Bóng nước lũ do Thời Ảnh đánh thức', palette: shadow('#4a8ab0', '#4affe0'), hp: 0.9, turretHp: 8, scale: 1 },
+    boss: { type: 'serpent', model: 'thuongluong', name: 'THUỒNG LUỒNG', sub: 'Thủy quái đầu nguồn bị Thời Ảnh chiếm hồn — giải thoát nó!', hp: 0.9, turretHp: 8, scale: 1 },
     clearLines: [['su', 'Như Sơn Tinh năm xưa, ta đã đẩy lùi con nước! Văn Lang bình yên rồi.'], ['au', 'Bình minh trên đồi trung du đẹp quá… Em muốn ở lại thêm chút nữa!'], ['kien', 'Làm tốt lắm, Lạc Hồng. Chuẩn bị nhảy thời gian: thế kỷ III trước Công nguyên.']],
     script(h) {
       const { say, lm, at } = h;
@@ -122,7 +122,7 @@ export const STAGES = [
       walls: ['#c8b088', '#b8a078'], roofs: ['#8a6a44', '#7a5a3a'], thatch: ['#9a8050', '#a88a58'], lamps: false,
     },
     enemyTint: '#d8ccff',
-    boss: { type: 'core', name: 'HẮC NỎ', sub: 'Pháo đài nỏ của Thời Ảnh', palette: shadow('#c8a040'), hp: 0.95 },
+    boss: { type: 'warship', model: 'kimquy', name: 'KIM QUY', sub: 'Rùa vàng giúp dựng thành Cổ Loa, đang bị bóng tối trói buộc', hp: 0.95, turrets: 6 },
     clearLines: [['su', 'Ba vòng thành vẫn đứng vững. Hàng vạn mũi tên đồng kia sẽ còn nằm đó cho hậu thế tìm thấy.'], ['dong', 'Thành đất mà bền như đá. Người xưa giỏi thật.'], ['kien', 'Lạc Hồng, nhảy tiếp: năm 968, kinh đô Hoa Lư.']],
     script(h) {
       const { say, lm } = h;
@@ -163,7 +163,7 @@ export const STAGES = [
       paddy: ['#7aac3a', '#90bc48', '#68a036'], mud: '#6a6448', bank: '#7a7a62', lamps: false,
     },
     enemyTint: '#d8ccff',
-    boss: { type: 'warship', name: 'LÂU THUYỀN ẢNH', sub: 'Chiến hạm bóng tối trên sông Hoàng Long', palette: shadow('#a8a49a'), hp: 1.0, turrets: 7 },
+    boss: { type: 'core', model: 'lan', name: 'KỲ LÂN', sub: 'Linh thú điềm lành bị Thời Ảnh khống chế', hp: 1.0 },
     clearLines: [['su', 'Núi đá Hoa Lư vẫn sừng sững như tường thành. Nhà Đinh đã chọn đất thật giỏi.'], ['au', 'Bay luồn giữa những ngọn núi đá… em thích màn này nhất!'], ['kien', 'Tốt lắm. Năm 1010, Lý Công Uẩn sẽ dời đô ra Thăng Long — đến đó ngay.']],
     script(h) {
       const { say, lm, at } = h;
@@ -205,7 +205,7 @@ export const STAGES = [
       walls: ['#e6d8b8', '#d8c8a0', '#c8a878'], roofs: ['#8a4a2a', '#7a3a24', '#9a5a34'], hallRoof: ['#7a3a24', '#8a4a2a'], boat: 'sampan', lamp: 'lantern',
     },
     enemyTint: '#d8ccff',
-    boss: { type: 'serpent', name: 'GIAO LONG ẢNH', sub: 'Giao long bóng tối trên Hồ Tây', palette: shadow('#c8a03a', '#ffd23a'), hp: 1.05, turretHp: 10, scale: 1.1 },
+    boss: { type: 'serpent', model: 'rongly', name: 'RỒNG THĂNG LONG', sub: 'Rồng vàng thời Lý bị bóng tối nuốt chửng', hp: 1.05, turretHp: 10, scale: 1.1 },
     clearLines: [['su', 'Hồ Tây lặng sóng. Kinh thành Thăng Long sẽ đứng vững hơn nghìn năm nữa.'], ['dong', 'Rồng thật thì bay lên. Rồng giả thì phải nằm xuống.'], ['kien', 'Tiếp theo: thời Trần, năm 1288. Chuẩn bị cho một trận thủy chiến.']],
     script(h) {
       const { say, lm } = h;
@@ -247,7 +247,7 @@ export const STAGES = [
       walls: ['#e0d0b0', '#d0bc98'], roofs: ['#8a4a2a', '#7a3a24'], rock: '#7a7468', rock2: '#8a8478', lamps: false,
     },
     enemyTint: '#d8ccff',
-    boss: { type: 'serpent', name: 'THỦY QUÁI TRIỀU ĐEN', sub: 'Quái vật bóng tối cưỡi con nước lên', palette: shadow('#5a8a7a', '#ff6a3a'), hp: 1.1, turretHp: 11, scale: 1.15 },
+    boss: { type: 'warship', model: 'kinhngu', name: 'KÌNH NGƯ', sub: 'Cá Ông — thần hộ biển — bị kéo vào con nước đen', hp: 1.1, turrets: 7 },
     clearLines: [['su', 'Con nước đã rút, quái vật mắc cạn giữa bãi cọc — y như năm 1288!'], ['dong', 'Thắng nhờ hiểu đất, hiểu nước. Bài học ấy không bao giờ cũ.'], ['kien', 'Lạc Hồng, nhảy tới năm 1397: thành đá Tây Đô của nhà Hồ.']],
     script(h) {
       const { say, lm } = h;
@@ -289,7 +289,7 @@ export const STAGES = [
       walls: ['#cfc6b0', '#bcb49c'], roofs: ['#6a4430', '#5a3a2a'], hill: '#3f6a34', hill2: '#4a7a3a', lamps: false,
     },
     enemyTint: '#d8ccff',
-    boss: { type: 'core', name: 'THÀNH ĐÁ ẢNH', sub: 'Pháo đài bóng tối dưới chân Tây Đô', palette: shadow('#8a9a8a'), hp: 1.1 },
+    boss: { type: 'core', model: 'nghe', name: 'NGHÊ ĐÁ', sub: 'Linh thú canh giữ cổng thành Tây Đô bị hóa đá đen', hp: 1.1 },
     clearLines: [['su', 'Sáu trăm năm sau, những khối đá ấy vẫn khít đến mức không lọt lưỡi dao. Di sản thế giới đấy!'], ['dong', 'Mưa tạnh rồi. Trời Thanh Hóa sáng lên đẹp lắm.'], ['kien', 'Tiếp theo: thời Lê sơ, triều đại của Lê Lợi và Lê Thánh Tông.']],
     script(h) {
       const { say, lm, at } = h;
@@ -330,7 +330,7 @@ export const STAGES = [
       walls: ['#e6d8b8', '#d8c8a0', '#e8d0a0'], roofs: ['#8a4a2a', '#7a3a24', '#6a3a28'], hallRoof: ['#8a4a2a', '#a06030'], boat: 'sampan', lamp: 'lantern',
     },
     enemyTint: '#d8ccff',
-    boss: { type: 'warship', name: 'KỲ HẠM HẮC KIẾM', sub: 'Chiến hạm bóng tối trên bầu trời Đông Kinh', palette: shadow('#d8b04a'), hp: 1.1, turrets: 8 },
+    boss: { type: 'core', model: 'phuong', name: 'PHƯỢNG HOÀNG', sub: 'Chim thần của điện Kính Thiên mất ngọn lửa thiêng', hp: 1.15 },
     clearLines: [['su', 'Tám mươi hai tấm bia tiến sĩ vẫn còn nguyên — giờ là Di sản tư liệu thế giới.'], ['au', 'Thấy rùa vàng nhô lên giữa hồ… em nổi da gà luôn!'], ['kien', 'Lạc Hồng, nhảy tới thế kỷ XVII: những thương cảng sầm uất nhất xứ Đàng Ngoài và Đàng Trong.']],
     script(h) {
       const { say, lm } = h;
@@ -372,7 +372,7 @@ export const STAGES = [
       walls: ['#e8c050', '#f0cc60', '#e0b040', '#d8b858'], roofs: ['#6a4430', '#5a3a28', '#7a4a30'], boat: 'junk', boatCols: ['#8a4a2a', '#5a3a24', '#a83a2a'], lamp: 'lantern',
     },
     enemyTint: '#e0d0ff',
-    boss: { type: 'warship', name: 'THUYỀN MA', sub: 'Thương thuyền bóng tối của Thời Ảnh', palette: shadow('#8a6a3a', '#3affb0'), hp: 1.2, turrets: 7 },
+    boss: { type: 'warship', model: 'cachep', name: 'CÁ CHÉP HÓA RỒNG', sub: 'Cá chép vượt Vũ Môn bị bóng tối giam giữa cửa biển', hp: 1.2, turrets: 7 },
     clearLines: [['su', 'Đèn lồng vẫn sáng khắp phố. Hội An được UNESCO công nhận là Di sản thế giới năm 1999 đấy.'], ['au', 'Lần sau đến đây em phải đi bộ qua chùa Cầu mới được!'], ['kien', 'Lạc Hồng, nhảy tới cuối thế kỷ XVIII: thời Tây Sơn.']],
     script(h) {
       const { say, lm, at } = h;
@@ -417,7 +417,7 @@ export const STAGES = [
       walls: ['#e6d8b8', '#d8c8a0'], roofs: ['#8a4a2a', '#7a3a24'], boat: 'junk', lamp: 'lantern', paddy: ['#86b844', '#9ac04c', '#78aa3e'],
     },
     enemyTint: '#d8ccff',
-    boss: { type: 'core', name: 'LÕI BÃO ĐÊM', sub: 'Pháo đài bóng tối chắn đường vào Thăng Long', palette: shadow('#c83a3a'), hp: 1.2 },
+    boss: { type: 'core', model: 'voi', name: 'VOI CHIẾN', sub: 'Voi chiến Tây Sơn bị Thời Ảnh điều khiển', hp: 1.2 },
     clearLines: [['su', 'Mùng 5 Tết Kỷ Dậu, Quang Trung vào Thăng Long. Hoa đào vẫn nở — ta đã giữ được mùa xuân ấy.'], ['dong', 'Hành quân thần tốc… Cả phi đội cũng phải học cái tinh thần đó.'], ['kien', 'Trận cuối, Lạc Hồng: Kinh thành Huế triều Nguyễn. Thời Ảnh dồn toàn lực ở đó.']],
     script(h) {
       const { say, lm } = h;
@@ -461,7 +461,7 @@ export const STAGES = [
       walls: ['#ece0c4', '#e0d0a8', '#d8c8a0'], roofs: ['#8a4a2a', '#c8a032', '#3a6a4a'], hallRoof: ['#d8b03a', '#c8a032'], boat: 'sampan', lamp: 'lantern',
     },
     enemyTint: '#e0c8ff',
-    boss: { type: 'warship', name: 'THỜI ẢNH VƯƠNG', sub: 'Kỳ hạm tối thượng của Thời Ảnh', palette: shadow('#d8b03a', '#ff2d55'), hp: 1.5, turrets: 8, final: true },
+    boss: { type: 'serpent', model: 'haclong', name: 'HẮC LONG THỜI ẢNH', sub: 'Thời Ảnh hiện nguyên hình, quấn lấy rồng vàng kinh thành', hp: 1.5, turretHp: 13, scale: 1.3, final: true },
     clearLines: [['su', 'Từ Văn Lang đến Huế… nghìn năm lịch sử vẫn nguyên vẹn. Chúng ta đã giữ được tất cả!'], ['au', 'Hoàng hôn trên sông Hương… đẹp nhất trong mười màn luôn!'], ['dong', 'Nghìn năm văn hiến. Bay qua rồi mới thấy hết.'], ['kien', 'Nhiệm vụ hoàn thành, Lạc Hồng. Về nhà thôi.']],
     script(h) {
       const { say, lm } = h;
