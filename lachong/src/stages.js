@@ -64,7 +64,7 @@ export const STAGES = [
     music: 'stage1', bossAt: 7300, checkpoint: 3800, weather: 'mist',
     palettes: {
       dawn: pal({ zenith: '#3a5a98', mid: '#b4bcd8', horizon: '#ffcaa0', fog: '#e8cfc0', sun: '#ffd0a0', hemiGround: '#5a5a40', sunElev: 7, sunAz: 62, sunLight: 2.3, fogDensity: 0.0008, fogHeight: 0.004, fogFalloff: 0.035, glow: 0.45, cloudCover: 0.3, bloom: 0.46, waterDeep: '#3a3022', waterScatter: '#8a6a3a' }),
-      morning: pal({ zenith: '#2f62b0', mid: '#a8c8e8', horizon: '#ffe4c0', fog: '#dcd6c4', sun: '#fff0d0', sunElev: 18, sunLight: 2.8, fogDensity: 0.00062, fogHeight: 0.0018, waterDeep: '#3a3626', waterScatter: '#7a6a42' }),
+      morning: pal({ zenith: '#2f62b0', mid: '#a8c8e8', horizon: '#ffe4c0', fog: '#dcd6c4', sun: '#fff0d0', sunElev: 18, sunAz: 62, sunLight: 2.8, fogDensity: 0.00062, fogHeight: 0.0018, waterDeep: '#3a3626', waterScatter: '#7a6a42' }),
     },
     paletteKeys: [{ at: 0, name: 'dawn' }, { at: 3000, name: 'dawn' }, { at: 6000, name: 'morning' }],
     segments: [
@@ -87,15 +87,15 @@ export const STAGES = [
       at(330, () => h.tip(`${K('W')}${K('A')}${K('S')}${K('D')} / phím mũi tên: bay　${K('J')} / ${K('Space')}: bắn`, 6, 'Kéo góc trái dưới để bay ／ FIRE để bắn'));
       lm('nghialinh', 1500, { u: -300, view: 4000 });
       say(1250, 'su', 'Bên trái là núi Nghĩa Lĩnh, nơi có đền thờ các vua Hùng. Ngày giỗ Tổ mùng 10 tháng Ba âm lịch vẫn được giữ đến hôm nay.');
-      lm('thuyenlac', 2100, { u: 75 }); lm('thuyenlac', 2250, { u: -80 });
+      lm('thuyenlac', 2100, { u: 75, rotY: Math.PI / 2 }); lm('thuyenlac', 2250, { u: -80, rotY: Math.PI / 2 });
       lm('nhasan', 2700, { u: 0 });
       say(2450, 'su', 'Nhà sàn mái cong hình thuyền — đúng như hình khắc trên trống đồng! Bay qua gầm sàn đi!');
       say(3000, 'su', 'Ngã ba Bạch Hạc: sông Đà, sông Lô đổ vào sông Hồng. Phù sa ba con sông nuôi cả nền văn minh lúa nước.');
-      lm('trongdong', 4600, { u: 0 });
+      lm('trongdong', 4600, { u: 62 });
       say(4250, 'su', 'Trống đồng Đông Sơn! Giữa mặt trống là ngôi sao nhiều cánh, xung quanh là chim Lạc bay, người giã gạo, thuyền đua.');
-      say(4500, 'dong', 'Bay cao qua mặt trống. Đừng chạm vào cổ vật.');
+      say(4500, 'dong', 'Mặt trống ở bên phải. Bay cao qua trên nó, đừng chạm vào cổ vật.');
       lm('nhasan', 5600, { u: -120, big: false, scale: 2.4 }); lm('nhasan', 5700, { u: 140, big: false, scale: 2.2 });
-      lm('thuyenlac', 6900, { u: 70 }); lm('thuyenlac', 7050, { u: -60 });
+      lm('thuyenlac', 6900, { u: 70, rotY: Math.PI / 2 }); lm('thuyenlac', 7050, { u: -60, rotY: Math.PI / 2 });
       waves(h, this);
       say(6950, 'su', 'Truyền thuyết kể Thủy Tinh dâng nước đánh Sơn Tinh, nhưng núi càng dâng cao hơn. Nước đang dâng ở phía trước!', { prio: 1 });
     },
@@ -169,7 +169,7 @@ export const STAGES = [
       const { say, lm, at } = h;
       say(110, 'kien', 'Năm 968. Hoa Lư, kinh đô của nước Đại Cồ Việt. Cẩn thận — núi đá dày đặc!', { hold: 2.2 });
       say(560, 'su', 'Năm 968, Đinh Bộ Lĩnh dẹp loạn mười hai sứ quân, lên ngôi Hoàng đế, đặt quốc hiệu Đại Cồ Việt.');
-      for (const [s, u, hh] of [[900, 70, 140], [1250, -75, 170], [1700, 85, 120], [2050, -70, 150], [4500, 80, 160], [4850, -75, 130], [6200, 70, 150], [6550, -80, 180]]) lm('karst', s, { u, h: hh, seed: s });
+      for (const [s, u, hh] of [[900, 70, 140], [1250, -75, 170], [1700, 85, 120], [2050, -70, 150], [4500, 80, 160], [4850, -75, 130], [6200, 70, 150], [6550, -80, 180]]) lm('karst', s, { u: Math.sign(u) * 100, h: hh, r: 32, seed: s });
       lm('cotkinh', 1500, { u: -60 });
       say(1350, 'su', 'Cột đá tám cạnh kia là cột kinh Phật do Nam Việt Vương Đinh Liễn dựng năm 973, khắc kinh Phật Đỉnh Tôn Thắng.');
       lm('hoaluwall', 2700, { u: 0 });
@@ -256,9 +256,9 @@ export const STAGES = [
       say(1000, 'su', 'Thiên Trường là nơi các Thái thượng hoàng nhà Trần về ở sau khi nhường ngôi cho con.');
       lm('phominh', 1900, { u: 110 });
       say(1750, 'su', 'Tháp Phổ Minh xây năm 1305 đời Trần Anh Tông: mười bốn tầng, chân tháp bằng đá chạm hoa sen.');
-      lm('yentu', 3400, { u: 340, view: 5000, keep: 600 });
+      lm('yentu', 3400, { u: 500, view: 5000, keep: 600 });
       say(3150, 'su', 'Phía xa bên phải là núi Yên Tử — nơi vua Trần Nhân Tông xuất gia, lập Thiền phái Trúc Lâm.');
-      lm('thuyentran', 4400, { u: -70 }); lm('thuyentran', 4550, { u: 80 });
+      lm('thuyentran', 4400, { u: -70, rotY: Math.PI / 2 }); lm('thuyentran', 4550, { u: 80, rotY: Math.PI / 2 });
       lm('baicoc', 5000, { u: 0, seed: 5 });
       say(4750, 'su', 'Năm 1288, Trần Hưng Đạo cho cắm cọc gỗ dưới lòng sông, nhử thuyền giặc Nguyên vào lúc nước lên rồi đánh khi triều rút.');
       say(4950, 'dong', 'Bãi cọc ngay dưới chân. Bay thấp mà luồn cho khéo!');

@@ -1625,7 +1625,7 @@ const INST = {
     const f = mtof(e.n), d = e.d, vel = e.v;
     const v = new Voice(musicPool, sp.bus.lead, t, 1);
     const amp = v.gain(0);
-    const end = adsr(amp.gain, t, d, 0.035, 0.3, 0.84, 0.22, 0.16 * vel);
+    const end = adsr(amp.gain, t, d, 0.035, 0.3, 0.84, 0.22, 0.12 * vel);
     const lpf = v.filter('lowpass', cap(f * 5 + 600), 0.7, amp);
     const vib = v.keep(mkGain(0));
     const vd = Math.min(0.25, d * 0.4);
@@ -1638,7 +1638,7 @@ const INST = {
       vib.connect(o.detune);
     }
     const br = v.gain(0, amp);
-    adsr(br.gain, t, d, 0.02, 0.2, 0.5, 0.15, 0.09 * vel);
+    adsr(br.gain, t, d, 0.02, 0.2, 0.5, 0.15, 0.07 * vel);
     v.noise('white', t, end, v.filter('bandpass', cap(f * 2), 2.4, br));
     const ch = v.gain(0, amp);
     perc(ch.gain, t, 0.07 * vel, 0.004, 0.05);
@@ -1653,7 +1653,7 @@ const INST = {
     const f = mtof(e.n), d = e.d, vel = e.v;
     const v = new Voice(musicPool, sp.bus.lead, t, 1);
     const amp = v.gain(0);
-    const pk = 0.2 * vel;
+    const pk = 0.155 * vel;
     amp.gain.setValueAtTime(0, t);
     amp.gain.linearRampToValueAtTime(pk, t + 0.006);
     amp.gain.setTargetAtTime(pk * 0.62, t + 0.006, 0.07);
@@ -1687,7 +1687,7 @@ const INST = {
     const f = mtof(e.n), d = e.d, vel = e.v;
     const v = new Voice(musicPool, sp.bus.lead, t, 1);
     const amp = v.gain(0);
-    const end = adsr(amp.gain, t, d, 0.025, 0.25, 0.9, 0.12, 0.07 * vel);
+    const end = adsr(amp.gain, t, d, 0.025, 0.25, 0.9, 0.12, 0.078 * vel);
     const hp = v.filter('highpass', 280, 0.7, amp);
     const f2 = v.filter('peaking', 2750, 2.5, hp, 6);
     const f1 = v.filter('peaking', 1250, 1.6, f2, 8);
@@ -1718,7 +1718,7 @@ const INST = {
     const amp = v.gain(0);
     const att = e.sw ? d * 0.8 : (e.a || (chord ? 0.18 : 0.06));
     const end = adsr(amp.gain, t, d, att, 0.5, 0.9, e.r || (chord ? 0.4 : 0.2),
-      0.042 * vel * (3 / Math.max(3, ns.length)) * (chord ? 1 : 1.8));
+      0.06 * vel * (3 / Math.max(3, ns.length)) * (chord ? 1 : 1.5));
     const trem = v.gain(1, amp);
     const tl = v.keep(mkGain(0.13));
     tl.connect(trem.gain);
@@ -1740,7 +1740,7 @@ const INST = {
     const f = mtof(e.n), d = e.d, vel = e.v;
     const v = new Voice(musicPool, e.pan !== undefined ? sp.bus.arp : sp.bus.lead, t, 1, e.pan || 0);
     const amp = v.gain(0);
-    const end = perc(amp.gain, t, 0.13 * vel, 0.002, 0.22 + Math.min(0.75, d * 1.1));
+    const end = perc(amp.gain, t, 0.1 * vel, 0.002, 0.22 + Math.min(0.75, d * 1.1));
     const body = v.filter('peaking', 650, 1.2, amp, 5);
     const lpf = v.filter('lowpass', cap(f * 6), 1.1, body);
     fenv(lpf.frequency, t, cap(f * 10 + 2000), cap(f * 10 + 2000), cap(f * 2.2 + 400), 0.001, 0.12);
@@ -1767,7 +1767,7 @@ const INST = {
     const f = mtof(e.n), vel = e.v;
     const v = new Voice(musicPool, sp.bus.arp, t, 1, e.pan || 0);
     const amp = v.gain(0);
-    const end = perc(amp.gain, t, 0.11 * vel, 0.001, 0.16 + Math.min(0.12, e.d * 0.5));
+    const end = perc(amp.gain, t, 0.16 * vel, 0.001, 0.16 + Math.min(0.12, e.d * 0.5));
     const lpf = v.filter('lowpass', 3000, 4, amp);
     fenv(lpf.frequency, t, cap(f * 12), cap(f * 12), cap(f * 1.8 + 200), 0.001, 0.07);
     const o = v.osc('sawtooth', f, t, end, lpf);
@@ -1808,7 +1808,7 @@ const INST = {
     let end = t;
     if (!rim) {
       const bg = v.gain(0, amp);
-      end = perc(bg.gain, t, 0.45 * vel, 0.002, 0.65);
+      end = perc(bg.gain, t, 0.36 * vel, 0.002, 0.65);
       const o = v.osc('sine', 92, t, end + 0.02, bg);
       env(o.frequency, t, [[0, 130], [0.04, 96], [0.6, 82]]);
     }
@@ -1817,7 +1817,7 @@ const INST = {
     for (const [r, a, dd] of modes) {
       const g = v.gain(0, amp);
       const len = dd * (rim ? 0.55 : 1);
-      end = Math.max(end, perc(g.gain, t, a * vel * (rim ? 1.25 : 1), 0.002, len));
+      end = Math.max(end, perc(g.gain, t, a * vel * (rim ? 1.05 : 0.85), 0.002, len));
       v.osc('sine', cap(base * r), t, t + len + 0.03, g);
     }
     const ck = v.gain(0, amp);
