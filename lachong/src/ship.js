@@ -264,11 +264,12 @@ const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _back = new THREE.Vector3();
 const YUP = new THREE.Vector3(0, 1, 0);
 
-export const LIMITS = { u: 46, vMin: 2.6, vMax: 58 };
+export const LIMITS = { u: 46, vMin: 4, vMax: 58 };   // vMin keeps the dragon's legs and tail out of the water
 
 export class PlayerShip {
   constructor() {
     this.model = buildMount('rong', 'player');   // Lạc Hồng 1 rides the Lý dragon
+    this.model.group.scale.setScalar(1.25);       // the slender dragon reads small from the chase camera
     this.root = new THREE.Group();
     this.pivot = new THREE.Group();
     this.root.add(this.pivot);
