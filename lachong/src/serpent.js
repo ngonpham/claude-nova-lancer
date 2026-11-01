@@ -2,6 +2,8 @@
 // in rail-relative space so it always reads well from the chase camera.
 // Models (cfg.model): 'thuongluong' (river water-serpent, Văn Lang), 'rongly' (Lý-dynasty dragon, Thăng Long),
 // 'haclong' (final: Thời Ảnh's black dragon coiled around the golden Nguyễn dragon).
+// Each model is a Higgsfield 3D Jutsu GLB (assets/models/<model>.glb, see glbParts) when embedded; the procedural
+// geometry below is the fallback.
 // While possessed the creature's true colours show through an ink-black shadow coat with violet glowing seams.
 // Phase 1: shadow growths (turrets) on its back. Phase 2: shadow heart in the mouth + sweeping beam. Phase 3: enraged.
 // Defeat PURIFIES it: the shadow peels off from head to tail, the true colours return in a golden flash and the
@@ -14,6 +16,7 @@ import { TARGETS, enemyShot, aimAtPlayer } from './weapons.js';
 import { AudioSys } from './audio.js';
 import { loft, slab, fin } from './ship.js';
 import { POST, patchFog, flashLight } from './gfx.js';
+import { hasModel, findNode } from './models.js';
 
 // ============================================================ geometry helpers
 const hexS = (w, h, y = 0) => [[w, y], [w * 0.62, y + h], [-w * 0.62, y + h], [-w, y], [-w * 0.7, y - h * 0.8], [w * 0.7, y - h * 0.8]];
@@ -92,13 +95,14 @@ function buildPalette(model, legacy) {
   return p;
 }
 
-// paint a part: true colour + emissive in color/aEmit, possessed colour + emissive in aShadow
-function P(g0, role) {
+// paint a part: true colour + emissive in color/aEmit, possessed colour + emissive in aShadow.
+// `col` overrides the role's true colour (GLB parts bring their own); `keepN` keeps the part's own normals.
+function P(g0, role, col = null, keepN = false) {
   const R = PAL[role] || PAL.armor;
   const g = g0.index ? g0.toNonIndexed() : g0.clone();
-  for (const k of Object.keys(g.attributes)) if (k !== 'position') g.deleteAttribute(k);
-  g.computeVertexNormals();
-  const c = new THREE.Color(R[0]), em = R[1] || 0;
+  for (const k of Object.keys(g.attributes)) if (k !== 'position' && !(keepN && k === 'normal')) g.deleteAttribute(k);
+  if (!keepN || !g.attributes.normal) g.computeVertexNormals();
+  const c = col ? col.clone() : new THREE.Color(R[0]), em = R[1] || 0;
   const sc = R[2] ? new THREE.Color(R[2]) : INK.clone().lerp(c, 0.07), se = R[2] ? (R[3] ?? 1) : 0;
   const n = g.attributes.position.count;
   const ca = new Float32Array(n * 3), ea = new Float32Array(n), sa = new Float32Array(n * 4);
@@ -485,6 +489,61 @@ function turretGeo() {
   return mergeGeometries(parts);
 }
 
+// ============================================================ 3D Jutsu models (lachong/assets/models/<model>.glb)
+// Contract (all under the root empty BOSS_<model>; only the geometry in each node's own frame is used):
+//   HEAD  skull + upper jaw, origin = the game's head origin (the jaw hinge sits at (0,-0.5,6) head units)
+//   JAW   lower jaw, origin = the hinge
+//   SEG   one body segment, centred, game segment frame (-Z toward the head)
+//   TAIL  the last segment (own body + tail fins)
+//   FIN / LEG / MANE   add-ons merged onto segments of kind 'fin' / 'leg' / 'neck' (segment frame)
+//   SHADOW_HEAD, SHADOW_COIL_A, SHADOW_COIL_B   (haclong) Thời Ảnh's black dragon: its head (shead frame) and the
+//                      helical coil for even / odd segments (segment frame)
+//   POSE_*  preview instances of the parts above (ignored here)
+// Material names are the palette roles (armor, scale, eye, seam, mouth, shadow, sglow, …); their base colours
+// become the TRUE colours, while the possessed coat / emissive behaviour still comes from the role.
+// The models are authored in metres at the in-game size of their stage (head = 1.7·k, segment = 1.35·k,
+// shadow head = 1.7·1.25·k head units, k = GLB_SIZEK), so the bake divides that back out.
+const GLB_SIZEK = { thuongluong: 1.0, rongly: 1.1, haclong: 1.3 };
+const _gm = new THREE.Matrix4(), _gi = new THREE.Matrix4(), _gc = new THREE.Color();
+function bakeGlb(model, node, k, keepCol) {
+  const n = findNode(model, node);
+  if (!n) return null;
+  n.updateWorldMatrix(true, true);
+  _gi.copy(n.matrixWorld).invert();
+  const parts = [];
+  n.traverse((o) => {
+    if (!o.isMesh) return;
+    const g = o.geometry.clone();
+    _gm.multiplyMatrices(_gi, o.matrixWorld);
+    g.applyMatrix4(_gm);
+    g.scale(1 / k, 1 / k, 1 / k);
+    // GLTFLoader gives one Mesh per glTF primitive, i.e. one material each
+    const mt = Array.isArray(o.material) ? o.material[0] : o.material;
+    const role = (mt.name || 'armor').replace(/\.\d+$/, '');
+    const col = keepCol(role) || !mt.color ? null : _gc.copy(mt.color);
+    parts.push(P(g, PAL[role] ? role : 'armor', col, true));
+  });
+  return parts.length ? mergeGeometries(parts) : null;
+}
+function glbParts(model, legacy) {
+  const k = GLB_SIZEK[model] || 1, KH = 1.7 * k, KS = 1.35 * k;
+  // roles recoloured by a legacy cfg.palette keep the palette colour instead of the model's
+  const LEG = { armor: ['armor'], plate: ['plate', 'scale'], trim: ['fin', 'mane', 'horn', 'whisker'], eye: ['eye'], seam: ['seam'], belly: ['belly'], membrane: ['membrane'] };
+  const keep = new Set();
+  if (legacy) for (const key of Object.keys(legacy)) for (const r of LEG[key] || []) keep.add(r);
+  const keepCol = (role) => keep.has(role) || !!SHADOW_ROLES[role];
+  const B = (node, kk) => bakeGlb(model, node, kk, keepCol);
+  const p = {
+    head: B('HEAD', KH), jaw: B('JAW', KH), seg: B('SEG', KS), tail: B('TAIL', KS),
+    fin: B('FIN', KS), leg: B('LEG', KS), mane: B('MANE', KS),
+    shead: B('SHADOW_HEAD', KH * 1.25), coilA: B('SHADOW_COIL_A', KS), coilB: B('SHADOW_COIL_B', KS),
+  };
+  if (!p.head || !p.jaw || !p.seg || !p.tail) return null;
+  const add = { fin: p.fin, leg: p.leg, neck: p.mane };
+  p.segKind = (kind) => kind === 'tail' ? p.tail : (add[kind] ? mergeGeometries([p.seg, add[kind]]) : p.seg);
+  return p;
+}
+
 // ============================================================ models
 const MODELS = {
   thuongluong: {
@@ -517,6 +576,8 @@ export class SerpentBoss {
     this.model = MODELS[cfg.model] ? cfg.model : 'thuongluong';
     const M = this.M = MODELS[this.model];
     PAL = buildPalette(this.model, cfg.palette);
+    // 3D Jutsu model when its GLB is embedded (procedural geometry otherwise)
+    const GP = this.glb = hasModel(this.model) ? glbParts(this.model, cfg.palette) : null;
     this.final = !!cfg.final;
     this.TUR = this.final ? [2, 3, 5, 6, 8, 9, 11, 12] : [2, 4, 6, 8, 10, 12];
     this.coreHp = Math.round(150 * (cfg.hp || 1));
@@ -529,10 +590,10 @@ export class SerpentBoss {
     this.root = new THREE.Group();
     // head
     this.head = new THREE.Group();
-    this.skull = new THREE.Mesh(M.head(), this.mat);
+    this.skull = new THREE.Mesh(GP ? GP.head : M.head(), this.mat);
     this.jawPivot = new THREE.Group();
     this.jawPivot.position.set(0, -0.5, 6);
-    this.jaw = new THREE.Mesh(M.jaw(), this.mat);
+    this.jaw = new THREE.Mesh(GP ? GP.jaw : M.jaw(), this.mat);
     this.jawPivot.add(this.jaw);
     this.coreMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 0.6, 4) });
     this.core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.8, 1), this.coreMat);
@@ -540,7 +601,7 @@ export class SerpentBoss {
     this.head.add(this.skull, this.jawPivot, this.core);
     this.skull.castShadow = this.jaw.castShadow = true;
     if (M.shadowHead) {
-      this.shead = new THREE.Mesh(shadowHeadGeo(), this.smat);
+      this.shead = new THREE.Mesh(GP && GP.shead ? GP.shead : shadowHeadGeo(), this.smat);
       this.shead.position.set(0, 6.9, 6.5);
       this.shead.rotation.x = -0.1;
       this.shead.scale.setScalar(1.25);
@@ -550,8 +611,8 @@ export class SerpentBoss {
     this.head.scale.setScalar(1.7 * this.sizeK);
     this.root.add(this.head);
     // body
-    const geos = {}, geo = (k) => (geos[k] ||= M.seg(k));
-    const coils = M.coil ? [coilGeo(0, BODY_R[this.model]), coilGeo(1, BODY_R[this.model])] : null;
+    const geos = {}, geo = (k) => (geos[k] ||= GP ? GP.segKind(k) : M.seg(k));
+    const coils = !M.coil ? null : GP && GP.coilA ? [GP.coilA, GP.coilB || GP.coilA] : [coilGeo(0, BODY_R[this.model]), coilGeo(1, BODY_R[this.model])];
     const gTur = turretGeo();
     this.segs = [];
     for (let i = 0; i < N; i++) {
