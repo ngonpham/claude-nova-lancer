@@ -22,6 +22,7 @@ import {
 } from './hud.js';
 import { AudioSys } from './audio.js';
 import { STAGES, STAGE_BY_ID } from './stages.js';
+import { loadModels, MODELS, bakePart } from './models.js';
 
 // Resolve on the next animation frame, or after a short timeout when the tab is in the background.
 const nextFrame = () => new Promise(r => { let done = false; const f = () => { if (!done) { done = true; r(); } }; requestAnimationFrame(f); setTimeout(f, 60); });
@@ -51,6 +52,8 @@ async function boot() {
   best = loadBest();
   const app = document.getElementById('app');
   initHUD();
+  setLoading(0.03, 'MODELS');
+  await loadModels();          // 3D Jutsu GLBs must be parsed before any boss is built
   setLoading(0.05, 'RENDERER');
   await nextFrame();
   initRenderer(app);
@@ -94,7 +97,7 @@ async function boot() {
   enterTitle(true);
   requestAnimationFrame(loop);
   if (__DEV__) Object.assign(window, {
-    G, BOSS, WING, ship, emit, Input, POST, GFX, THREE, STAGES,
+    G, BOSS, WING, ship, emit, Input, POST, GFX, THREE, STAGES, MODELS, bakePart,
     __jump: (d, id) => { G.run = G.run || newRun(); if (id) loadStage(STAGE_BY_ID[id]); newStageStats(G.run); hideScreens(); setupStage(d, false); },
     __stage: (id) => { G.run = newRun(G.settings.difficulty); G.run.firstStage = id; beginStage(id, true); },
     __start: () => startMission(),

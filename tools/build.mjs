@@ -64,7 +64,21 @@ const options = {
   write: false,
   logLevel: 'warning',
   define: { __DEV__: dev ? 'true' : 'false' },
+  loader: { '.glb': 'binary' },
   plugins: [{
+    // `import RAW from 'virtual:models'` → { name: Uint8Array } for every <game>/assets/models/*.glb
+    name: 'models',
+    setup(build) {
+      const dir = path.join(SRC, '..', 'assets', 'models');
+      build.onResolve({ filter: /^virtual:models$/ }, () => ({ path: 'models', namespace: 'virtual-models' }));
+      build.onLoad({ filter: /.*/, namespace: 'virtual-models' }, () => {
+        const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.glb')).sort() : [];
+        const lines = files.map((f, i) => `import m${i} from ${JSON.stringify(path.join(dir, f))};`);
+        lines.push(`export default { ${files.map((f, i) => `${JSON.stringify(f.slice(0, -4))}: m${i}`).join(', ')} };`);
+        return { contents: lines.join('\n'), resolveDir: SRC, loader: 'js', watchFiles: files.map(f => path.join(dir, f)) };
+      });
+    },
+  }, {
     name: 'html-writer',
     setup(build) {
       build.onEnd(result => {
