@@ -13,6 +13,8 @@ import { TARGETS, enemyShot, aimAtPlayer } from './weapons.js';
 import { AudioSys } from './audio.js';
 import { paint, spawnEnemy, wave } from './enemies.js';
 import { POST } from './gfx.js';
+import { hasModel, findNode, bakePart } from './models.js';
+import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _p = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
@@ -40,6 +42,41 @@ const EYE_SH = new THREE.Color('#ff2a6e').multiplyScalar(1.9);
 const GOLD = new THREE.Color('#ffd27a');
 const WHITE = new THREE.Color(1, 1, 1);
 const GE = 0.08;   // emissive mask of gold trim: dark while possessed, glints once purified
+
+// ============================================================ 3D Jutsu models (lachong/assets/models/<model>.glb)
+// Node contract (in-game metres, glTF Y-up, +z faces the player):
+//   BOSS_<model>  root (origin = creature centre)
+//   ├ BODY        torso / legs / clouds; origin at the centre. Every animated part below hangs off BODY or HEAD with its
+//   │             origin on its joint: HEAD (neck), JAW (hinge), EAR_L/R, TAIL / TAIL_n, DOOR_L/R, PLATE_L/R, WING_L/R,
+//   │             CREST_n, PLUME_n, TRUNK_1..n (chain), HOWDAH → BANNER_L1..3 / BANNER_R1..3 (chains) — see RIG.
+//   ├ CORE        empty: where the shadow heart sits
+//   └ SHIELD      ONE orbiting shield in root space (+y points out of the orbit); instanced nPanels times.
+// Material names route the baked colours: EYE* → eye material, SEAM* → glowing shadow seams, GOLD* → gold trim
+// (dark while possessed, glints once purified), GLOW* → jewels; every other material is a true colour under the coat.
+// sway: [node name or /regex/, axis, amplitude, frequency, phase, phase step per match]
+const RIG = {
+  lan: {
+    coreIn: 'HEAD', coreR: 4.65, crease: 0.8, open: [['JAW', 'x', 0.78]],
+    sway: [['EAR_L', 'z', -0.12, 2.3, -1], ['EAR_R', 'z', 0.12, 2.3, 1], ['TAIL', 'z', 0.12, 1.1, 0], ['TAIL', 'x', 0.06, 0.8, 1]],
+  },
+  nghe: {
+    coreIn: 'HEAD', coreR: 4.65, crease: 0, open: [['JAW', 'x', 0.75]],
+    sway: [['EAR_L', 'z', 0.07, 1.1, -1], ['EAR_R', 'z', -0.07, 1.1, 1], [/TAIL_\d/, 'z', 0.06, 0.9, 0, 1], [/TAIL_\d/, 'x', 0.05, 0.7, 0, 1.7]],
+  },
+  phuong: {
+    coreIn: 'BODY', coreR: 4.8, crease: 0.8, open: [['PLATE_L', 'y', -1.15], ['PLATE_R', 'y', 1.15]], wings: ['WING_L', 'WING_R'],
+    sway: [[/PLUME_\d/, 'z', 0.05, 0.8, 0, 0.7], [/PLUME_\d/, 'x', 0.05, 0.6, 0, 1.3], [/CREST_\d/, 'x', 0.1, 1.6, 0, 1]],
+  },
+  voi: {
+    coreIn: 'HEAD', coreR: 3.9, crease: 0.8, open: [['DOOR_L', 'y', -1.2], ['DOOR_R', 'y', 1.2]], trunk: /TRUNK_\d/,
+    sway: [['EAR_L', 'y', -0.2, 1.3, -0.5], ['EAR_R', 'y', 0.2, 1.3, 0.5], [/BANNER_L\d/, 'y', 0.13, 3.2, -1, 0.9], [/BANNER_R\d/, 'y', 0.13, 3.2, 1, 0.9]],
+  },
+};
+const isGeo = (o) => o.name.includes('_geo');           // glTF primitive meshes of a node (Blender mesh data "<NODE>_geo")
+const matClass = (o) => {
+  const n = (o.material && o.material.name) || '';
+  return n.startsWith('EYE') ? 'eye' : n.startsWith('SEAM') ? 'seam' : n.startsWith('GOLD') ? 'gold' : n.startsWith('GLOW') ? 'glow' : 'body';
+};
 
 // ============================================================ Geometry kit
 const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _t = new THREE.Vector3();
@@ -129,8 +166,11 @@ export class CoreBoss {
     this.root.add(this.body);
     this.hulls = []; this.sway = []; this.wisp = [];
     this.coreAt = V(0, 0, 2.5); this.coreR = 3.2;
+    // 3D Jutsu model when its GLB is embedded; the procedural beast stays as the fallback
+    this.glb = hasModel(this.model) && !!findNode(this.model, 'BODY');
     LOW = this.model === 'nghe';
-    ({ lan: this.buildLan, nghe: this.buildNghe, phuong: this.buildPhuong, voi: this.buildVoi })[this.model].call(this, P);
+    if (this.glb) this.buildGLB();
+    else ({ lan: this.buildLan, nghe: this.buildNghe, phuong: this.buildPhuong, voi: this.buildVoi })[this.model].call(this, P);
     // the shadow heart (weak point)
     const cc = new THREE.Color(P.core);
     this.coreBase = cc; this.coreCol = cc.clone();
@@ -150,11 +190,16 @@ export class CoreBoss {
     for (const h of this.hulls) { wsum += h.w; h.cw = wsum; }
     this.hullW = wsum;
     // orbiting shields
-    LOW = this.model === 'nghe';
-    const pk = new Kit();
-    ({ lan: panelLan, nghe: panelNghe, phuong: panelPhuong, voi: panelVoi })[this.model](pk, P, this.rng);
-    LOW = false;
-    const pg = mergeGeometries(pk.b), ps = pk.s.length ? mergeGeometries(pk.s) : null;
+    let pg, ps;
+    const sg = this.glb ? this.glbGeo('SHIELD', true) : null;
+    if (sg && sg.body) { pg = sg.body; ps = sg.seam; }
+    else {
+      LOW = this.model === 'nghe';
+      const pk = new Kit();
+      ({ lan: panelLan, nghe: panelNghe, phuong: panelPhuong, voi: panelVoi })[this.model](pk, P, this.rng);
+      LOW = false;
+      pg = mergeGeometries(pk.b); ps = pk.s.length ? mergeGeometries(pk.s) : null;
+    }
     this.panels = [];
     for (let i = 0; i < this.nPanels; i++) {
       const m = new THREE.Group();
@@ -192,6 +237,76 @@ export class CoreBoss {
     return g;
   }
   swayOn(g, ax, amp, f, ph = 0) { this.sway.push({ g, ax, amp, f, ph, base: g.rotation[ax] }); return g; }
+
+  // ---------------------------------------------------------------- 3D Jutsu model (see RIG for the node contract)
+  // Bake one node's own meshes (not its child parts) into body / seam / eye geometries in the node's local frame.
+  glbGeo(name, all = false) {
+    const M = this.model, node = findNode(M, name);
+    if (!node) return null;
+    const own = (o) => all || o === node || (o.parent === node && isGeo(o));
+    const bake = (c) => { const b = bakePart(M, name, { skip: (o) => !own(o) || matClass(o) !== c }); return b && b.geo; };
+    const list = [];
+    for (const [c, em] of [['body', 0], ['gold', GE], ['glow', 0.3]]) {
+      const g = bake(c);
+      if (g) { g.attributes.aEmit.array.fill(em); list.push(g); }
+    }
+    const crease = RIG[M].crease;
+    const smooth = (g) => (g && crease > 0 ? toCreasedNormals(g, crease) : g);
+    return { body: list.length ? smooth(list.length > 1 ? mergeGeometries(list) : list[0]) : null, seam: bake('seam'), eye: smooth(bake('eye')) };
+  }
+
+  // One pivot group per part node, mirroring the GLB hierarchy; meshes sit in a 'skin' child so a part can breathe
+  // (scale) without scaling its children.
+  glbPart(node, parent) {
+    const g = new THREE.Group();
+    g.name = node.name;
+    g.position.copy(node.position); g.quaternion.copy(node.quaternion); g.scale.copy(node.scale);
+    g.userData.org = node.getWorldPosition(new THREE.Vector3());
+    const skin = new THREE.Group();
+    g.add(skin); g.userData.skin = skin;
+    const geo = this.glbGeo(node.name);
+    if (geo.body) {
+      skin.add(new THREE.Mesh(geo.body, this.mat));
+      // hull samples for the shadow wisps / purification: vertices weighted by surface area
+      const pa = geo.body.attributes.position.array;
+      let area = 0;
+      for (let i = 0; i < pa.length; i += 9) {
+        _v.set(pa[i + 3] - pa[i], pa[i + 4] - pa[i + 1], pa[i + 5] - pa[i + 2]);
+        _v2.set(pa[i + 6] - pa[i], pa[i + 7] - pa[i + 1], pa[i + 8] - pa[i + 2]);
+        area += _v.cross(_v2).length() * 0.5;
+      }
+      this.hulls.push({ g: skin, pos: pa, nrm: geo.body.attributes.normal.array, n: pa.length / 3, w: area });
+    }
+    if (geo.seam) skin.add(new THREE.Mesh(geo.seam, this.seamMat));
+    if (geo.eye) skin.add(new THREE.Mesh(geo.eye, this.eyeMat));
+    parent.add(g);
+    this.P[node.name] = g;
+    for (const c of node.children) if (!isGeo(c) && c.name !== 'CORE') this.glbPart(c, g);
+    return g;
+  }
+
+  buildGLB() {
+    const M = this.model, R = RIG[M];
+    this.body.scale.setScalar(1);          // the GLB is authored in in-game metres
+    this.P = {};
+    this.glbPart(findNode(M, 'BODY'), this.body);
+    const P = this.P;
+    this.torso = P.BODY.userData.skin;
+    this.headG = P.HEAD || null;
+    this.coreR = R.coreR;
+    const cn = findNode(M, 'CORE');
+    if (cn) cn.getWorldPosition(this.coreAt); else this.coreAt.set(0, 0, 4);
+    this.coreParent = P[R.coreIn] || P.BODY;
+    this.openParts = R.open.filter(([n]) => P[n]).map(([n, ax, a]) => [P[n], ax, a]);
+    const names = Object.keys(P).sort();
+    for (const [pat, ax, amp, f, ph, step = 0] of R.sway) {
+      const hits = typeof pat === 'string' ? (P[pat] ? [pat] : []) : names.filter((n) => pat.test(n));
+      hits.forEach((n, i) => this.swayOn(P[n], ax, amp, f, ph + i * step));
+    }
+    if (R.wings) this.wings = R.wings.filter((n) => P[n]).map((n, i) => { P[n].userData.side = i ? 1 : -1; return P[n]; });
+    if (R.trunk) this.trunk = names.filter((n) => R.trunk.test(n)).map((n) => P[n]);
+    if (P.JAW) this.jaw = P.JAW;
+  }
 
   // ---------------------------------------------------------------- KỲ LÂN
   buildLan(P) {
@@ -955,6 +1070,13 @@ export class CoreBoss {
     const x = Math.random() * this.hullW;
     let h = this.hulls[0];
     for (const hh of this.hulls) if (hh.cw >= x) { h = hh; break; }
+    if (h.pos) {
+      const i = (Math.random() * h.n | 0) * 3;
+      out.set(h.pos[i], h.pos[i + 1], h.pos[i + 2]); dir.set(h.nrm[i], h.nrm[i + 1], h.nrm[i + 2]);
+      h.g.localToWorld(out);
+      dir.transformDirection(h.g.matrixWorld);
+      return out;
+    }
     dir.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)).normalize();
     out.set(h.c.x + dir.x * h.r.x, h.c.y + dir.y * h.r.y, h.c.z + dir.z * h.r.z);
     h.g.localToWorld(out);
@@ -1010,7 +1132,7 @@ export class CoreBoss {
     if (M === 'voi') {
       for (let i = 0; i < this.trunk.length; i++) {
         const g = this.trunk[i];
-        const curl = lerp(-0.02, -0.26, i / this.trunk.length);
+        const curl = this.glb ? lerp(-0.12, -0.42, i / this.trunk.length) : lerp(-0.02, -0.26, i / this.trunk.length);   // the GLB trunk is shorter: curl harder
         g.rotation.x = lerp(curl, -0.36, joy) + 0.07 * Math.sin(T * 1.3 - i * 0.55) * (1 + enr * 0.5);
         g.rotation.z = 0.06 * Math.sin(T * 0.9 - i * 0.45);
       }

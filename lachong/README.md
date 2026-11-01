@@ -5,7 +5,7 @@
 Game không chiến 3D cưỡi linh vật theo đường ray (kiểu Star Fox) chạy trên trình duyệt, viết mới dựa trên engine của [NOVA LANCER](../README.md), [SKYLINE ASIA](../asia/README.md) và [PANDORA RIDERS](../pandora/README.md).
 **Phi đội Lạc Hồng** cưỡi các **linh vật** của lịch sử Việt Nam (Rồng vàng thời Lý, Phượng hoàng, Ngựa sắt Phù Đổng, Chim Lạc Đông Sơn) nhảy qua **10 thời kỳ hoàng kim** của lịch sử Việt Nam, từ nước Văn Lang của các vua Hùng đến kinh thành Huế triều Nguyễn. Ở mỗi thời kỳ, phi đội ngắm kinh thành, kiến trúc và cảnh quan thời ấy, đồng thời bảo vệ chúng khỏi **Thời Ảnh**, một thế lực bóng tối muốn xóa lịch sử: nó sai bầy ảnh thú (quạ, dơi, đại bàng, ma trơi bóng tối…) và chiếm hồn các linh vật canh giữ từng thời kỳ. Hạ boss là **giải thoát linh vật**: lớp bóng tối bong ra, linh vật trở lại màu thật rồi bay đi. Hoa tiêu **Sử** thuyết minh về từng di tích qua bộ đàm.
 
-Địa hình, công trình, linh vật, boss, nhạc nền và giọng nói đều được **tạo hoàn toàn bằng mã** (Three.js + Web Audio), không dùng tệp ảnh hay âm thanh nào.
+Địa hình, công trình, linh vật cưỡi, nhạc nền và giọng nói đều được **tạo hoàn toàn bằng mã** (Three.js + Web Audio), không dùng tệp ảnh hay âm thanh nào. Riêng **10 boss linh vật** được dựng trong [Higgsfield 3D Jutsu](https://higgsfield.ai/3d-jutsu) (Blender chạy trên máy chủ, dựng bằng script Python), xuất ra GLB rồi nhúng thẳng vào tệp HTML.
 
 **Chơi:** mở `lachong/index.html` trong trình duyệt (một tệp duy nhất, chạy offline; chỉ font chữ tải từ Google Fonts). **Cả 10 màn đều chọn chơi được ngay từ đầu** (menu *Chọn thời kỳ*), hoặc chơi cả chiến dịch theo thứ tự thời gian.
 
@@ -56,6 +56,23 @@ Game không chiến 3D cưỡi linh vật theo đường ray (kiểu Star Fox) c
 - Địch thường là **ảnh thú**: quạ bóng, dơi bóng, đại bàng bóng, ma trơi, đèn ma mang vật phẩm, cá đuối bóng khổng lồ, tượng cóc và tượng nghê đá nhiễm bóng tối, hạt bóng.
 - Ngoài ra có vòng bạc hồi khiên, vòng vàng, **hỏa châu đôi** và **hỏa châu thần**, **sấm sét** (bom), và sự kiện giải cứu đồng đội.
 
+### Boss dựng bằng Higgsfield 3D Jutsu
+
+Mỗi boss là một project 3D Jutsu riêng, dựng hoàn toàn bằng script Blender Python (không dùng ảnh tham chiếu hay mô hình tạo bằng AI). Các bộ phận chuyển động (hàm, đầu, vây, cánh, vòi, đuôi…) là các node có tên, đặt gốc tọa độ đúng khớp quay; tên vật liệu cho game biết phần nào là màu thật, đường nứt bóng tối, mắt, viền vàng. Khi tải game, `models.js` đọc các GLB và "nướng" từng bộ phận thành geometry có màu theo đỉnh, nên lớp bóng tối, hiệu ứng trúng đạn và cảnh giải thoát vẫn dùng chung shader của game. Nếu thiếu tệp GLB, boss tự dựng lại bằng mã như cũ.
+
+| Màn | Boss | Kiểu | Project 3D Jutsu | Tam giác |
+| --- | --- | --- | --- | --- |
+| 1 | Thuồng luồng | Rồng nước | [f34f7b45](https://higgsfield.ai/3d-jutsu/f34f7b45-ad04-46de-bf85-db81a4396a6f) | 5k |
+| 2 | Kim Quy | Linh vật bay | [2c289ba7](https://higgsfield.ai/3d-jutsu/2c289ba7-877f-481e-b8e5-28f35c3a4cec) | 10k |
+| 3 | Kỳ Lân | Vòng giáp | [4086af1d](https://higgsfield.ai/3d-jutsu/4086af1d-2670-485c-a965-8b250375f4dd) | 15k |
+| 4 | Rồng Thăng Long | Rồng nước | [11cdecd2](https://higgsfield.ai/3d-jutsu/11cdecd2-b0f3-43e5-800a-c19e8460ede7) | 8k |
+| 5 | Kình ngư (cá Ông) | Linh vật bay | [e15eb746](https://higgsfield.ai/3d-jutsu/e15eb746-0fde-4bb4-94bc-dbe3e4aba60d) | 12k |
+| 6 | Nghê đá Tây Đô | Vòng giáp | [6f5adb16](https://higgsfield.ai/3d-jutsu/6f5adb16-938f-45ef-b075-b4d05f35b4a1) | 14k |
+| 7 | Phượng hoàng | Vòng giáp | [2edad264](https://higgsfield.ai/3d-jutsu/2edad264-f7a9-4ef1-a653-0fa9a8ef6930) | 15k |
+| 8 | Cá chép hóa rồng | Linh vật bay | [d2dc35a4](https://higgsfield.ai/3d-jutsu/d2dc35a4-26c1-42db-b937-e14cc8e5f86a) | 12k |
+| 9 | Voi chiến Tây Sơn | Vòng giáp | [8b028aad](https://higgsfield.ai/3d-jutsu/8b028aad-ccfe-4b5a-b6d8-52a9f8f4c79e) | 15k |
+| 10 | Hắc Long Thời Ảnh | Rồng nước (trùm cuối) | [f5d8f8ee](https://higgsfield.ai/3d-jutsu/f5d8f8ee-f9f0-4e7a-be71-cf15abcdd977) | 11k |
+
 ### Điều khiển
 
 | Thao tác | Bàn phím | Tay cầm |
@@ -85,7 +102,8 @@ npm run dev:lachong     # bản dev có sourcemap, tự build lại khi sửa m�
 | `portraits.js` | Chân dung SVG của phi đội |
 | `mounts.js` | Bốn linh vật cưỡi (mỗi con một skinned mesh có xương, hoạt ảnh bay) và người cưỡi |
 | `enemies.js` | Ảnh thú bóng tối (vỗ cánh trong shader) |
-| `serpent.js` / `warship.js` / `coreboss.js` | Ba kiểu boss linh vật, lớp bóng tối và cảnh giải thoát |
+| `serpent.js` / `warship.js` / `coreboss.js` | Ba kiểu boss linh vật: rig từ GLB, lớp bóng tối và cảnh giải thoát |
+| `models.js`, `../assets/models/*.glb` | 10 mô hình boss xuất từ Higgsfield 3D Jutsu, nhúng vào bản build (`virtual:models` trong `tools/build.mjs`) |
 | còn lại | Engine dùng chung (vũ khí, hiệu ứng, HUD) |
 
 ## Ghi chú lịch sử
