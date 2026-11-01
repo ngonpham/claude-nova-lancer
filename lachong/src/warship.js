@@ -8,6 +8,8 @@
 //                         long whiskers, budding antlers and a mane.
 // While possessed the true colours show only faintly through an ink-black coat with violet seams and red-violet
 // eyes; shadow growths (turrets) cling to its back and shadow wisps trail it.
+// The beasts are modelled in Higgsfield 3D Jutsu (lachong/assets/models/<model>.glb, see GLB_PARTS); the procedural
+// builders below remain as the fallback and always lay out the rig, hardpoints and core.
 // Phase 1: the shadow growths fire + volleys from the fins + homing shadow-bolts. Phase 2: the mouth opens on the
 // possessed heart (the core), which charges and sweeps a beam; the heart is only vulnerable while the mouth is open.
 // Enraged (heart < 50%): faster cycles, ring bursts, drone launches.
@@ -22,6 +24,7 @@ import { AudioSys } from './audio.js';
 import { loft, slab, fin, mirrorX } from './ship.js';
 import { paint, wave } from './enemies.js';
 import { POST } from './gfx.js';
+import { hasModel, findNode, bakePart } from './models.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _p = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3();
 const _n = new THREE.Vector3(), _q = new THREE.Quaternion(), _c = new THREE.Color();
@@ -139,6 +142,12 @@ class Coat {
   seam(g, hex, em = 0.35, sem = 0.5) { return this.add(g, hex, em, this.S.seam, sem); }
   eye(g, hex, em = 0.9) { return this.add(g, hex, em, this.S.eye, 0.8); }
   inner(g, hex, em = 0) { return this.add(g, hex, em, '#3a0a2c', 0.55); }
+  // a part baked from a 3D Jutsu model: per-vertex true colour/emission; role = the material-name prefix
+  baked(g, role) {
+    const P = { SEAM: [this.S.seam, 0.5], LINE: [this.S.seam, 0.14], EYE: [this.S.eye, 0.8], INNER: ['#3a0a2c', 0.55] }[role];
+    this.items.push({ g, vc: g.attributes.color.array, ve: g.attributes.aEmit.array, s: P ? new THREE.Color(P[0]) : null, sem: P ? P[1] : 0 });
+    return this;
+  }
   build() {
     const geos = [], tc = [], sc = [], te = [], se = [];
     const S = this.S, sh = new THREE.Color(), tcol = new THREE.Color();
@@ -148,10 +157,16 @@ class Coat {
       g.computeVertexNormals();
       const pos = g.attributes.position, n = pos.count;
       for (let i = 0; i < n; i++) {
-        tcol.copy(it.c);
+        let em = it.em;
+        if (it.vc) {
+          // bakePart blends emissive vertices halfway toward colour × emission; undo that to recover the base colour
+          const ev = it.ve[i], k = ev > 0.05 ? 1 / (0.5 + 0.5 * ev) : 1;
+          tcol.setRGB(Math.min(1, it.vc[i * 3] * k), Math.min(1, it.vc[i * 3 + 1] * k), Math.min(1, it.vc[i * 3 + 2] * k));
+          em = it.s || ev > 0.05 ? ev : (S.glowT || 0);
+        } else tcol.copy(it.c);
         if (it.grad) { const y = pos.getY(i), k = clamp((y - it.grad.yMid) / (2 * it.grad.blend) + 0.5, 0, 1); tcol.lerpColors(it.grad.c2, it.c, k * k * (3 - 2 * k)); }
         if (it.s) sh.copy(it.s); else sh.copy(S.ink).lerp(tcol, S.show);
-        tc.push(tcol.r, tcol.g, tcol.b); sc.push(sh.r, sh.g, sh.b); te.push(it.em); se.push(it.sem);
+        tc.push(tcol.r, tcol.g, tcol.b); sc.push(sh.r, sh.g, sh.b); te.push(em); se.push(it.sem);
       }
       g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
       g.setAttribute('aEmit', new THREE.BufferAttribute(new Float32Array(n), 1));
@@ -169,7 +184,8 @@ class Rig {
   constructor(ship, mat, S) { this.mat = mat; this.S = S; this.g = { ship }; this.meshes = []; }
   grp(key, parent, x = 0, y = 0, z = 0) { const g = new THREE.Group(); g.position.set(x, y, z); this.g[parent].add(g); this.g[key] = g; return g; }
   coat() { return new Coat(this.S); }
-  mesh(parent, coat) { const m = new THREE.Mesh(coat.build(), this.mat); m.castShadow = true; this.g[parent].add(m); this.meshes.push(m); return m; }
+  // dry: the procedural builder only lays out pivots and points (the geometry comes from a 3D Jutsu model)
+  mesh(parent, coat) { if (this.dry) return null; const m = new THREE.Mesh(coat.build(), this.mat); m.castShadow = true; this.g[parent].add(m); this.meshes.push(m); return m; }
   pt(parent, x, y, z) { const o = new THREE.Object3D(); o.position.set(x, y, z); this.g[parent].add(o); return o; }
 }
 
@@ -618,6 +634,62 @@ function buildCaChep(R, C) {
 
 const MODELS = { kimquy: [buildKimQuy, PAL_KIMQUY], kinhngu: [buildKinhNgu, PAL_KINHNGU], cachep: [buildCaChep, PAL_CACHEP] };
 
+// ============================================================ 3D Jutsu models
+// When lachong/assets/models/<model>.glb exists (built in Higgsfield 3D Jutsu) its parts replace the procedural
+// geometry. The procedural builder still runs "dry" to lay out the rig pivots, hardpoints, guns, wisps, colliders
+// and the core, so gameplay is identical; each GLB part node has its origin exactly on the matching rig pivot.
+// Contract: root empty BOSS_<model>; part nodes named below (metres in ship units, glTF +Z = head, +Y = up);
+// material names carry the coat role: SKIN_* true colour (ink while possessed), SEAM_* glow lines (violet seams
+// while possessed), LINE_* faint edge lines (dim violet), EYE_* glowing eyes (red-violet), INNER_* mouth/gills
+// (dark wine). '+key' = an extra part that becomes a static sub-group of its parent part.
+const WK = (s, x, i) => `wk${s}${x}${i}`;
+const GLB_PARTS = {
+  kimquy: { BODY: 'body', NECK: 'neck', HEAD: 'jawU', JAW: 'jawL', FIN_FL: 'flL', FIN_FR: 'flR', FIN_BL: 'frL', FIN_BR: 'frR', TAIL: '+tail' },
+  kinhngu: { BODY: 'body', TAIL: 'tail1', TAIL_2: 'tail2', FLUKE: 'fluke', HEAD: 'jawU', JAW: 'jawL', FIN_FL: 'pfL', FIN_FR: 'pfR' },
+  cachep: {
+    BODY: 'body', TAIL: 'tail1', TAIL_2: 'tail2', CAUDAL: 'cf1', CAUDAL_2: 'cf2', DORSAL_0: 'df0', DORSAL_1: 'df1', DORSAL_2: 'df2',
+    FIN_FL: 'pfL', FIN_FL2: 'pfL2', FIN_FR: 'pfR', FIN_FR2: 'pfR2', FIN_BL: 'pvL', FIN_BR: 'pvR', GILL_L: 'gL', GILL_R: 'gR', HEAD: 'jawU', JAW: 'jawL',
+    ...Object.fromEntries([0, 1, 2, 3, 4].flatMap(i => [[`WHISKER_L_${i}`, WK(-1, 4.4, i)], [`WHISKER_R_${i}`, WK(1, 4.4, i)]])),
+    ...Object.fromEntries([0, 1, 2].flatMap(i => [[`BARBEL_L_${i}`, WK(-1, 6.4, i)], [`BARBEL_R_${i}`, WK(1, 6.4, i)]])),
+  },
+};
+const ROLES = ['SKIN', 'SEAM', 'LINE', 'EYE', 'INNER'];
+const roleOf = (o) => { const r = ((o.material && o.material.name) || '').split('_')[0]; return ROLES.includes(r) ? r : 'SKIN'; };
+const glbReady = (model) => hasModel(model) && GLB_PARTS[model] && Object.entries(GLB_PARTS[model]).every(([n, k]) => k[0] === '+' || findNode(model, n));
+
+function buildFromModel(R, model) {
+  const parts = GLB_PARTS[model];
+  const owner = (o) => { for (let p = o; p; p = p.parent) if (parts[p.name]) return p.name; return null; };
+  for (const [name, k] of Object.entries(parts)) {
+    const node = findNode(model, name);
+    if (!node) continue;
+    let key = k;
+    if (k[0] === '+') {
+      key = k.slice(1);
+      const pk = parts[owner(node.parent)] || 'ship';
+      R.grp(key, pk[0] === '+' ? pk.slice(1) : pk);
+      R.g[key].position.copy(node.position); R.g[key].quaternion.copy(node.quaternion);
+    } else if (R.g[key]) {
+      // the node origin must sit on the procedural pivot (hardpoints and the core are placed from the rig); compared
+      // in the parent part's frame, since the model may be posed (the carp's whiskers droop at rest)
+      const pn = owner(node.parent), pg = pn && R.g[parts[pn]];
+      if (pg) {
+        R.g.ship.updateMatrixWorld(true);
+        const a = pg.worldToLocal(R.g[key].getWorldPosition(new THREE.Vector3()));
+        const b = findNode(model, pn).worldToLocal(node.getWorldPosition(new THREE.Vector3()));
+        if (a.distanceTo(b) > 0.25) console.warn(`warship ${model}: ${name} pivot off by ${a.distanceTo(b).toFixed(2)}`);
+      }
+    } else continue;
+    const c = R.coat();
+    let any = false;
+    for (const role of ROLES) {
+      const b = bakePart(model, name, { skip: (o) => owner(o) !== name || roleOf(o) !== role });
+      if (b) { c.baked(b.geo, role); any = true; }
+    }
+    if (any) R.mesh(key, c);
+  }
+}
+
 // A shadow growth clamped onto the beast: obsidian shards round a red-violet eye, twin spines as barrels.
 function turretGeo(S) {
   const parts = [];
@@ -635,7 +707,8 @@ function turretGeo(S) {
 export class WarshipBoss {
   constructor(cfg = {}) {
     this.cfg = cfg;
-    const [build, pal] = MODELS[cfg.model] || MODELS.kimquy;
+    const model = MODELS[cfg.model] ? cfg.model : 'kimquy';
+    const [build, pal] = MODELS[model];
     const C = { ...pal, ...(cfg.palette || {}) };
     this.C = C;
     const S = { ink: new THREE.Color(C.ink || '#06040b'), seam: C.seam || '#b46bff', eye: C.eye || '#ff3a8a', show: C.show ?? 0.1 };
@@ -651,7 +724,11 @@ export class WarshipBoss {
     this.ship = new THREE.Group();
     this.root.add(this.ship);
     this.rig = new Rig(this.ship, this.mat, S);
+    this.fromModel = glbReady(model);   // 3D Jutsu GLB parts, or the procedural geometry as fallback
+    this.rig.dry = this.fromModel;
     this.M = build(this.rig, C);
+    this.rig.dry = false;
+    if (this.fromModel) buildFromModel(this.rig, model);
     const g = this.rig.g;
     // the possessed heart
     const cc = new THREE.Color(C.core);
