@@ -98,7 +98,7 @@ npm run dev:lachong     # bản dev có sourcemap, tự build lại khi sửa m�
 | `world.js` | Địa hình theo đoạn: đồi trung du, núi đá vôi, đồng ruộng, sông, kinh thành, phố cổ; nhà sàn, nhà ngói, cây và thuyền |
 | `lmkit.js` | Bộ dựng hình: mái cong đầu đao, nhà nhiều tầng mái, tháp nhiều tầng, tường thành |
 | `landmarks_a.js` / `landmarks_b.js` | Di tích thời kỳ 1–5 và 6–10 |
-| `audio.js` | Nhạc nền mỗi thời kỳ (sáo trúc, đàn tranh, đàn bầu, trống đồng, nhã nhạc…) và giọng nói tổng hợp |
+| `audio.js` | Nhạc nền mỗi thời kỳ (sáo trúc, đàn tranh, đàn bầu, trống đồng, nhã nhạc…) và giọng nói tổng hợp; phát bài thu sẵn trong `../assets/music/*.webm` (sáng tác bằng ElevenLabs Music, Opus 32 kbps, vòng lặp liền) thay cho bài tổng hợp cùng tên nếu có |
 | `portraits.js` | Chân dung SVG của phi đội |
 | `mounts.js` | Bốn linh vật cưỡi (mỗi con một skinned mesh có xương, hoạt ảnh bay) và người cưỡi |
 | `enemies.js` | Ảnh thú bóng tối (vỗ cánh trong shader) |

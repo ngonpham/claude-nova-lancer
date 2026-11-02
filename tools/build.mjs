@@ -64,18 +64,20 @@ const options = {
   write: false,
   logLevel: 'warning',
   define: { __DEV__: dev ? 'true' : 'false' },
-  loader: { '.glb': 'binary' },
+  loader: { '.glb': 'binary', '.webm': 'binary' },
   plugins: [{
     // `import RAW from 'virtual:models'` → { name: Uint8Array } for every <game>/assets/models/*.glb
-    name: 'models',
+    // `import RAW from 'virtual:music'`  → { name: Uint8Array } for every <game>/assets/music/*.webm
+    name: 'assets',
     setup(build) {
-      const dir = path.join(SRC, '..', 'assets', 'models');
-      build.onResolve({ filter: /^virtual:models$/ }, () => ({ path: 'models', namespace: 'virtual-models' }));
-      build.onLoad({ filter: /.*/, namespace: 'virtual-models' }, () => {
-        const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.glb')).sort() : [];
+      const KINDS = { models: '.glb', music: '.webm' };
+      build.onResolve({ filter: /^virtual:(models|music)$/ }, a => ({ path: a.path.slice(8), namespace: 'virtual-assets' }));
+      build.onLoad({ filter: /.*/, namespace: 'virtual-assets' }, a => {
+        const dir = path.join(SRC, '..', 'assets', a.path), ext = KINDS[a.path];
+        const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith(ext)).sort() : [];
         const lines = files.map((f, i) => `import m${i} from ${JSON.stringify(path.join(dir, f))};`);
-        lines.push(`export default { ${files.map((f, i) => `${JSON.stringify(f.slice(0, -4))}: m${i}`).join(', ')} };`);
-        return { contents: lines.join('\n'), resolveDir: SRC, loader: 'js', watchFiles: files.map(f => path.join(dir, f)) };
+        lines.push(`export default { ${files.map((f, i) => `${JSON.stringify(f.slice(0, -ext.length))}: m${i}`).join(', ')} };`);
+        return { contents: lines.join('\n'), resolveDir: SRC, loader: 'js', watchFiles: files.map(f => path.join(dir, f)), watchDirs: [dir].filter(d => fs.existsSync(d)) };
       });
     },
   }, {

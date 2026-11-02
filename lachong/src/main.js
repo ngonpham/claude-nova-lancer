@@ -20,7 +20,7 @@ import {
   setBossHP, popText, MENU_CB, titlePressed, titleReset, updateMenus, menuBack, refreshTitle, setLoading, showResults,
   updateResults, skipResults, resetHUDCache, setGameOverText, clearMarkers, setBossName, setProgress, showEnding, setPauseText,
 } from './hud.js';
-import { AudioSys } from './audio.js';
+import { AudioSys, __audioInternals } from './audio.js';
 import { STAGES, STAGE_BY_ID } from './stages.js';
 import { loadModels, MODELS, bakePart } from './models.js';
 
@@ -97,7 +97,7 @@ async function boot() {
   enterTitle(true);
   requestAnimationFrame(loop);
   if (__DEV__) Object.assign(window, {
-    G, BOSS, WING, ship, emit, Input, POST, GFX, THREE, STAGES, MODELS, bakePart,
+    G, BOSS, WING, ship, emit, Input, POST, GFX, THREE, STAGES, MODELS, bakePart, AudioSys, __audioInternals,
     __jump: (d, id) => { G.run = G.run || newRun(); if (id) loadStage(STAGE_BY_ID[id]); newStageStats(G.run); hideScreens(); setupStage(d, false); },
     __stage: (id) => { G.run = newRun(G.settings.difficulty); G.run.firstStage = id; beginStage(id, true); },
     __start: () => startMission(),

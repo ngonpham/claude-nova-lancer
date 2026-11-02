@@ -25,6 +25,8 @@
 // -----------------------------------------------------------------------------
 // 1. Utilities
 // -----------------------------------------------------------------------------
+import TRACK_BYTES from 'virtual:music';   // { songName: Uint8Array } — recorded stage tracks (Opus/WebM)
+
 const EPS = 0.0001;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -3772,10 +3774,87 @@ function tick() {
   } catch (e) { /* keep the timer alive */ }
 }
 
+// Recorded tracks (composed with ElevenLabs Music, see lachong/README.md) replace the synthesized
+// song of the same name. They are embedded as Opus/WebM bytes, decoded on first use (keeping only
+// the last few decoded, ~45 MB each as PCM) and looped seamlessly: the files are pre-crossfaded so
+// their end runs straight into their start. If decoding fails (old browser, no Opus), the
+// synthesized song plays instead.
+const TRACK_GAIN = 2.2;    // tracks are normalised to -16 LUFS; this sits them level with the synth songs (~-27 dB RMS at master)
+const TRACK_CACHE = 3;
+const trackCache = new Map();   // name -> Promise<AudioBuffer | null>
+
+function decodeTrack(name) {
+  let p = trackCache.get(name);
+  if (p) { trackCache.delete(name); trackCache.set(name, p); return p; }   // refresh LRU order
+  p = new Promise((resolve) => {
+    try {
+      const bytes = TRACK_BYTES[name];
+      const copy = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+      const r = ctx.decodeAudioData(copy, b => resolve(b), () => resolve(null));
+      if (r && r.catch) r.catch(() => resolve(null));
+    } catch (e) { resolve(null); }
+  });
+  trackCache.set(name, p);
+  while (trackCache.size > TRACK_CACHE) trackCache.delete(trackCache.keys().next().value);
+  return p;
+}
+
+class TrackPlayer {
+  constructor(name, t0) {
+    this.name = name;
+    this.done = false;
+    this.stopAt = Infinity;
+    this.disposeAt = Infinity;
+    this.src = null;
+    this.out = mkGain(0);
+    this.out.connect(G.musicIn);
+    decodeTrack(name).then((buf) => {
+      if (this.done || this.stopAt !== Infinity) return;
+      if (!buf) { this.fallback(); return; }
+      try {
+        const now = ctx.currentTime, at = Math.max(now + 0.02, t0);
+        const s = ctx.createBufferSource();
+        s.buffer = buf;
+        s.loop = true;
+        s.connect(this.out);
+        s.start(at);
+        this.out.gain.setValueAtTime(0, now);
+        this.out.gain.linearRampToValueAtTime(TRACK_GAIN, at + 0.5);
+        this.src = s;
+      } catch (e) { this.fallback(); }
+    });
+  }
+
+  fallback() {
+    this.dispose();
+    players.delete(this);
+    if (current !== this) return;
+    current = new SongPlayer(this.name, ctx.currentTime + 0.06);
+    players.add(current);
+  }
+
+  schedule() { /* the buffer source plays on its own */ }
+
+  fadeOut(t, fade) {
+    if (this.stopAt !== Infinity) return;
+    const f = Math.max(0.03, fade);
+    glide(this.out.gain, 0, f / 4.5, t);
+    this.stopAt = t + f;
+    this.disposeAt = Math.min(this.disposeAt, t + f + 0.5);
+  }
+
+  dispose() {
+    try { if (this.src) this.src.stop(); } catch (e) { /* ignore */ }
+    try { this.out.disconnect(); } catch (e) { /* ignore */ }
+    this.src = null;
+    this.done = true;
+  }
+}
+
 function startSong(name, fade) {
   const now = ctx.currentTime;
   if (current) current.fadeOut(now, fade);
-  current = new SongPlayer(name, now + 0.06);
+  current = TRACK_BYTES[name] ? new TrackPlayer(name, now + 0.06) : new SongPlayer(name, now + 0.06);
   players.add(current);
   current.schedule(now + LOOKAHEAD, now);
 }
@@ -3961,6 +4040,7 @@ export const __audioInternals = {
   get ctx() { return ctx; },
   get graph() { return G; },
   get current() { return current; },
+  get tracks() { return Object.keys(TRACK_BYTES); },
   get players() { return players; },
   get pools() { return { sfx: sfxPool, music: musicPool }; },
   get loops() { return { active: activeLoops, dying: dyingLoops }; },
