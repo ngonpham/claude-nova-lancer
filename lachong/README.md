@@ -5,7 +5,7 @@
 Game không chiến 3D cưỡi linh vật theo đường ray (kiểu Star Fox) chạy trên trình duyệt, viết mới dựa trên engine của [NOVA LANCER](../README.md), [SKYLINE ASIA](../asia/README.md) và [PANDORA RIDERS](../pandora/README.md).
 **Phi đội Lạc Hồng** cưỡi các **linh vật** của lịch sử Việt Nam (Rồng vàng thời Lý, Phượng hoàng, Ngựa sắt Phù Đổng, Chim Lạc Đông Sơn) nhảy qua **10 thời kỳ hoàng kim** của lịch sử Việt Nam, từ nước Văn Lang của các vua Hùng đến kinh thành Huế triều Nguyễn. Ở mỗi thời kỳ, phi đội ngắm kinh thành, kiến trúc và cảnh quan thời ấy, đồng thời bảo vệ chúng khỏi **Thời Ảnh**, một thế lực bóng tối muốn xóa lịch sử: nó sai bầy ảnh thú (quạ, dơi, đại bàng, ma trơi bóng tối…) và chiếm hồn các linh vật canh giữ từng thời kỳ. Hạ boss là **giải thoát linh vật**: lớp bóng tối bong ra, linh vật trở lại màu thật rồi bay đi. Hoa tiêu **Sử** thuyết minh về từng di tích qua bộ đàm.
 
-Địa hình, công trình, linh vật cưỡi, nhạc nền và giọng nói đều được **tạo hoàn toàn bằng mã** (Three.js + Web Audio), không dùng tệp ảnh hay âm thanh nào. Riêng **10 boss linh vật** được dựng trong [Higgsfield 3D Jutsu](https://higgsfield.ai/3d-jutsu) (Blender chạy trên máy chủ, dựng bằng script Python), xuất ra GLB rồi nhúng thẳng vào tệp HTML.
+Địa hình, công trình, linh vật cưỡi, hiệu ứng âm thanh, nhạc màn hình chính/boss và giọng nói đều được **tạo hoàn toàn bằng mã** (Three.js + Web Audio). Riêng **10 boss linh vật** được dựng trong [Higgsfield 3D Jutsu](https://higgsfield.ai/3d-jutsu) (Blender chạy trên máy chủ, dựng bằng script Python), xuất ra GLB; **10 bài nhạc nền của 10 màn** được sáng tác bằng [ElevenLabs Music](https://elevenlabs.io/music). Cả hai được nhúng thẳng vào tệp HTML.
 
 **Chơi:** mở `lachong/index.html` trong trình duyệt (một tệp duy nhất, chạy offline; chỉ font chữ tải từ Google Fonts). **Cả 10 màn đều chọn chơi được ngay từ đầu** (menu *Chọn thời kỳ*), hoặc chơi cả chiến dịch theo thứ tự thời gian.
 
@@ -73,6 +73,23 @@ Mỗi boss là một project 3D Jutsu riêng, dựng hoàn toàn bằng script B
 | 9 | Voi chiến Tây Sơn | Vòng giáp | [8b028aad](https://higgsfield.ai/3d-jutsu/8b028aad-ccfe-4b5a-b6d8-52a9f8f4c79e) | 15k |
 | 10 | Hắc Long Thời Ảnh | Rồng nước (trùm cuối) | [f5d8f8ee](https://higgsfield.ai/3d-jutsu/f5d8f8ee-f9f0-4e7a-be71-cf15abcdd977) | 11k |
 
+### Nhạc nền 10 màn (ElevenLabs Music)
+
+Mỗi màn có một bài nhạc không lời, tiết tấu nhanh (138–170 BPM), tạo bằng **ElevenLabs Music v2.5** từ mô tả âm thanh theo bối cảnh thời kỳ. Bài dài 2 phút, được chuẩn hóa về −16 LUFS, nén Opus 32 kbps (~0,5 MB/bài). Đoạn dạo đầu chỉ phát một lần, sau đó game lặp một đoạn 60–86 giây. Điểm quay lại được chọn bằng cách so đường bao nhịp (onset) trước điểm cuối với từng vị trí trong bài để giữ đúng phách, rồi crossfade 1,5 giây (`assets/music/loops.json`). Trình duyệt không giải mã được Opus/WebM sẽ phát bài nhạc tổng hợp cũ.
+
+| Màn | Bài | Tempo | Màu sắc chính |
+| --- | --- | --- | --- |
+| 1 | Bình minh Văn Lang | 140 | Trống đồng, cồng chiêng, sáo trúc, khèn — hành khúc bình minh |
+| 2 | Thành ốc Cổ Loa | 150 | Trống trận, đàn đá, kèn hiệu, đàn tranh chạy ngũ cung, tiếng "nỏ" |
+| 3 | Kinh đô giữa núi đá | 138 | Đàn tranh tuôn chảy, sáo vang vọng, trống lăn, cello, chuông chùa |
+| 4 | Rồng bay Thăng Long | 145 | Dàn nhạc giao hưởng, kèn đồng, chuông chùa, mõ, đàn nguyệt |
+| 5 | Sóng Bạch Đằng | 155 | Trống chèo thuyền, dây trầm như sóng, đàn bầu trên cơn bão |
+| 6 | Thành đá Tây Đô | 150 | Trống tom nặng, cello staccato, pad mưa, đàn nhị cung thứ |
+| 7 | Thời Hồng Đức | 152 | Fanfare kèn đồng, dây chạy nhanh, kèn và đàn của nhã nhạc |
+| 8 | Đêm phố cổ | 140 | Đàn tranh, đàn nguyệt, sáo, trống múa lân, celesta như đèn lồng |
+| 9 | Thần tốc Tây Sơn | 170 | Trống trận Tây Sơn dồn dập, kèn đồng, dây phi nước đại |
+| 10 | Hoàng hôn kinh thành | 148 | Dàn nhạc và hợp xướng không lời, tỳ bà, đàn tranh, kèn Huế |
+
 ### Điều khiển
 
 | Thao tác | Bàn phím | Tay cầm |
@@ -98,7 +115,7 @@ npm run dev:lachong     # bản dev có sourcemap, tự build lại khi sửa m�
 | `world.js` | Địa hình theo đoạn: đồi trung du, núi đá vôi, đồng ruộng, sông, kinh thành, phố cổ; nhà sàn, nhà ngói, cây và thuyền |
 | `lmkit.js` | Bộ dựng hình: mái cong đầu đao, nhà nhiều tầng mái, tháp nhiều tầng, tường thành |
 | `landmarks_a.js` / `landmarks_b.js` | Di tích thời kỳ 1–5 và 6–10 |
-| `audio.js` | Nhạc nền mỗi thời kỳ (sáo trúc, đàn tranh, đàn bầu, trống đồng, nhã nhạc…) và giọng nói tổng hợp; phát bài thu sẵn trong `../assets/music/*.webm` (sáng tác bằng ElevenLabs Music, Opus 32 kbps, vòng lặp liền) thay cho bài tổng hợp cùng tên nếu có |
+| `audio.js` | Nhạc nền mỗi thời kỳ (sáo trúc, đàn tranh, đàn bầu, trống đồng, nhã nhạc…) và giọng nói tổng hợp; phát 10 bài nhạc nền trong `../assets/music/*.webm` (ElevenLabs Music) thay cho bài tổng hợp cùng tên, với điểm lặp trong `loops.json` |
 | `portraits.js` | Chân dung SVG của phi đội |
 | `mounts.js` | Bốn linh vật cưỡi (mỗi con một skinned mesh có xương, hoạt ảnh bay) và người cưỡi |
 | `enemies.js` | Ảnh thú bóng tối (vỗ cánh trong shader) |
@@ -110,5 +127,5 @@ npm run dev:lachong     # bản dev có sourcemap, tự build lại khi sửa m�
 
 - Di tích được dựng lại **giản lược và phóng to** để nhìn được từ trên không, dựa trên những gì sử liệu và khảo cổ ghi nhận. Nhiều công trình nay không còn (tháp Báo Thiên, cung điện Hoa Lư, điện Kính Thiên…), nên hình dáng trong game chỉ có tính gợi tả.
 - Chuyện "rồng vàng", "nỏ thần", "rùa vàng trả gươm" được thuyết minh như **truyền thuyết**. Phi đội, Thời Ảnh, chuyện linh vật bị chiếm hồn và các trận đánh trên không đều là hư cấu. Các linh vật lấy theo hình tượng trong mỹ thuật và truyền thuyết Việt Nam (tứ linh, chim Lạc trống đồng, ngựa sắt Thánh Gióng, cá Ông, nghê, cá chép vượt Vũ Môn).
-- Nhạc là sáng tác mới mô phỏng màu sắc âm nhạc truyền thống, không dùng bài dân ca hay nhã nhạc có sẵn.
+- Nhạc là sáng tác mới mô phỏng màu sắc âm nhạc truyền thống, không dùng bài dân ca hay nhã nhạc có sẵn: nhạc màn hình chính, boss và màn kết thúc tổng hợp bằng mã; nhạc nền 10 màn tạo bằng ElevenLabs Music từ mô tả âm thanh, không dùng bài mẫu.
 - Mã nguồn: MIT License (xem [LICENSE](../LICENSE)). Three.js: MIT. Font: Be Vietnam Pro, Chakra Petch, Oxanium (SIL Open Font License).

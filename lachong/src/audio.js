@@ -26,6 +26,7 @@
 // 1. Utilities
 // -----------------------------------------------------------------------------
 import TRACK_BYTES from 'virtual:music';   // { songName: Uint8Array } — recorded stage tracks (Opus/WebM)
+import TRACK_LOOPS from '../assets/music/loops.json';   // { songName: [loopStart, loopEnd] } in seconds
 
 const EPS = 0.0001;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -3776,9 +3777,10 @@ function tick() {
 
 // Recorded tracks (composed with ElevenLabs Music, see lachong/README.md) replace the synthesized
 // song of the same name. They are embedded as Opus/WebM bytes, decoded on first use (keeping only
-// the last few decoded, ~45 MB each as PCM) and looped seamlessly: the files are pre-crossfaded so
-// their end runs straight into their start. If decoding fails (old browser, no Opus), the
-// synthesized song plays instead.
+// the last few decoded, ~45 MB each as PCM). The intro plays once, then [loopStart, loopEnd) repeats:
+// the files are pre-crossfaded so loopEnd runs straight into loopStart on the beat (see the music
+// section of lachong/README.md). If decoding fails (old browser, no Opus), the synthesized song
+// plays instead.
 const TRACK_GAIN = 2.2;    // tracks are normalised to -16 LUFS; this sits them level with the synth songs (~-27 dB RMS at master)
 const TRACK_CACHE = 3;
 const trackCache = new Map();   // name -> Promise<AudioBuffer | null>
@@ -3816,6 +3818,8 @@ class TrackPlayer {
         const s = ctx.createBufferSource();
         s.buffer = buf;
         s.loop = true;
+        const lp = TRACK_LOOPS[this.name];
+        if (lp && lp[1] <= buf.duration + 0.05 && lp[0] < lp[1]) { s.loopStart = lp[0]; s.loopEnd = Math.min(lp[1], buf.duration); }
         s.connect(this.out);
         s.start(at);
         this.out.gain.setValueAtTime(0, now);
